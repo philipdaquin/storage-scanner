@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// View model for the scan view
 @MainActor
@@ -12,6 +13,9 @@ class ScanViewModel: ObservableObject {
     @Published var selectedCategory: CategorySidebar.Category?
     @Published var hasError = false
     @Published var errorMessage = ""
+    @Published var showDeleteConfirmation = false
+    @Published var hasSuccess = false
+    @Published var successMessage = ""
     
     private let scanner = FileScanner()
     
@@ -21,6 +25,10 @@ class ScanViewModel: ObservableObject {
     
     var selectedSize: Int64 {
         calculateSelectedSize(item: rootItem)
+    }
+    
+    var selectedSizeFormatted: String {
+        ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file)
     }
     
     private func calculateSelectedSize(item: FileItem?) -> Int64 {
@@ -105,16 +113,25 @@ class ScanViewModel: ObservableObject {
         }
     }
     
-    /// Delete selected items to trash
+    /// Request delete confirmation (shows alert)
     func deleteSelected() {
+        guard !selectedItems.isEmpty else { return }
+        showDeleteConfirmation = true
+    }
+    
+    /// Confirm delete after user clicks OK in alert
+    func confirmDelete() {
+        showDeleteConfirmation = false
         guard !selectedItems.isEmpty else { return }
         
         let fileManager = FileManager.default
         var deletedSize: Int64 = 0
         var errors: [String] = []
+        let deletedNames: [String] = []
         
         // Collect all files to delete
         let itemsToDelete = collectSelectedItems(from: rootItem)
+        let nameCount = itemsToDelete.count
         
         for item in itemsToDelete {
             do {
@@ -125,7 +142,11 @@ class ScanViewModel: ObservableObject {
             }
         }
         
-        if !errors.isEmpty {
+        if errors.isEmpty {
+            let saved = ByteCountFormatter.string(fromByteCount: deletedSize, countStyle: .file)
+            successMessage = "Moved \(nameCount) item(s) (\(saved)) to Trash."
+            hasSuccess = true
+        } else {
             errorMessage = errors.joined(separator: "\n")
             hasError = true
         }

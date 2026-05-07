@@ -87,9 +87,22 @@ struct ScanView: View {
             }
         }
         .alert("Error", isPresented: $viewModel.hasError) {
-            Button("OK") { viewModel.hasError = false }
+            Button("OK", role: .cancel) { viewModel.hasError = false }
         } message: {
             Text(viewModel.errorMessage)
+        }
+        .alert("Move to Trash?", isPresented: $viewModel.showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Move to Trash", role: .destructive) {
+                viewModel.confirmDelete()
+            }
+        } message: {
+            Text("Are you sure you want to move \(viewModel.selectedCount) item(s) (\(viewModel.selectedSizeFormatted)) to Trash?")
+        }
+        .alert("Done", isPresented: $viewModel.hasSuccess) {
+            Button("OK") { viewModel.hasSuccess = false }
+        } message: {
+            Text(viewModel.successMessage)
         }
     }
 }
@@ -237,7 +250,7 @@ struct DeleteFooter: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("\(selectedCount) item\(selectedCount == 1 ? "" : "s") selected")
+                Text("\(selectedCount) item(s) selected")
                     .font(.headline)
                 Text(ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file))
                     .font(.subheadline)
@@ -245,7 +258,7 @@ struct DeleteFooter: View {
             }
             
             Spacer()
-            
+
             Button(action: onDelete) {
                 Label("Move to Trash", systemImage: "trash")
             }
