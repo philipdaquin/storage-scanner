@@ -1,0 +1,3 @@
+[submodule "ncdu"]
+	path = ncdu
+	url = git://g.blicky.net/ncdu.git
