@@ -6,14 +6,19 @@ struct ScanView: View {
     @State private var showingFolderPicker = false
     
     var body: some View {
-        NavigationSplitView {
+        NavigationView {
             // Sidebar
             CategorySidebar(selectedCategory: $viewModel.selectedCategory)
                 .frame(minWidth: 180)
-        } detail: {
+
             VStack(spacing: 0) {
                 // Toolbar
                 HStack {
+                    Button(action: { viewModel.scanDisk() }) {
+                        Label("Scan Disk", systemImage: "internaldrive")
+                    }
+                    .buttonStyle(.borderedProminent)
+
                     Button(action: { showingFolderPicker = true }) {
                         Label("Scan Folder", systemImage: "folder.badge.gearshape")
                     }
@@ -24,6 +29,16 @@ struct ScanView: View {
                             .scaleEffect(0.8)
                         Text("Scanning...")
                             .foregroundColor(.secondary)
+                    }
+
+                    if viewModel.hasScanned {
+                        Picker("View", selection: $viewModel.viewMode) {
+                            ForEach(ScanViewMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
                     }
                     
                     Spacer()
@@ -42,14 +57,29 @@ struct ScanView: View {
                 if viewModel.hasScanned {
                     // Checklist + Delete bar
                     VStack(spacing: 0) {
-                        // File list
-                        FileListView(
-                            item: viewModel.rootItem,
-                            currentPath: viewModel.currentPath,
-                            onNavigate: viewModel.navigateTo,
-                            onSelect: viewModel.toggleSelection,
-                            selectedItems: viewModel.selectedItems
+                        BreadcrumbBar(
+                            items: viewModel.breadcrumbs,
+                            onNavigate: viewModel.navigateToBreadcrumb
                         )
+                        Divider()
+
+                        // File list
+                        if viewModel.viewMode == .list {
+                            FileListView(
+                                item: viewModel.displayedItem,
+                                canNavigateUp: !viewModel.currentPath.isEmpty && (viewModel.selectedCategory == nil || viewModel.selectedCategory == .all),
+                                onNavigate: viewModel.navigateTo,
+                                onNavigateUp: viewModel.navigateUp,
+                                onSelect: viewModel.toggleSelection,
+                                selectedItems: viewModel.selectedItems
+                            )
+                        } else {
+                            TreemapView(
+                                items: viewModel.treemapItems,
+                                selectedItems: viewModel.selectedItems,
+                                onSelect: viewModel.toggleSelection
+                            )
+                        }
                         
                         Divider()
                         
@@ -86,6 +116,9 @@ struct ScanView: View {
                 viewModel.scan(url: url)
             }
         }
+        .onChange(of: viewModel.selectedCategory) { category in
+            viewModel.applyCategory(category)
+        }
         .alert("Error", isPresented: $viewModel.hasError) {
             Button("OK", role: .cancel) { viewModel.hasError = false }
         } message: {
@@ -104,6 +137,37 @@ struct ScanView: View {
         } message: {
             Text(viewModel.successMessage)
         }
+    }
+}
+
+/// Breadcrumb navigation for the scanned tree
+struct BreadcrumbBar: View {
+    let items: [FileItem]
+    let onNavigate: (FileItem) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button(action: { onNavigate(item) }) {
+                        Label(item.name.isEmpty ? item.path.path : item.name, systemImage: index == 0 ? "externaldrive" : "folder")
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(index == items.count - 1 ? .primary : .accentColor)
+                    .disabled(index == items.count - 1)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -141,44 +205,165 @@ struct CategorySidebar: View {
     }
 }
 
+struct TreemapView: View {
+    let items: [FileItem]
+    let selectedItems: Set<UUID>
+    let onSelect: (FileItem) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            let rectangles = TreemapLayout.rectangles(
+                for: items,
+                in: CGRect(origin: .zero, size: geometry.size)
+            )
+
+            ZStack(alignment: .topLeading) {
+                Color(nsColor: .windowBackgroundColor)
+
+                ForEach(rectangles) { tile in
+                    TreemapTile(
+                        tile: tile,
+                        isSelected: selectedItems.contains(tile.item.id),
+                        onSelect: { onSelect(tile.item) }
+                    )
+                }
+            }
+        }
+        .padding(10)
+    }
+}
+
+struct TreemapTile: View {
+    let tile: TreemapTileModel
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(color(for: tile.item.fileType).opacity(isSelected ? 0.95 : 0.72))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(isSelected ? Color.primary : Color.white.opacity(0.35), lineWidth: isSelected ? 3 : 1)
+                    )
+
+                if tile.frame.width > 92 && tile.frame.height > 44 {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tile.item.name)
+                            .font(.system(size: min(13, max(9, tile.frame.height / 7)), weight: .semibold))
+                            .lineLimit(2)
+                        Text(tile.item.displaySize)
+                            .font(.system(size: 10, weight: .medium))
+                            .monospacedDigit()
+                            .opacity(0.78)
+                    }
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
+                    .padding(7)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: max(0, tile.frame.width - 2), height: max(0, tile.frame.height - 2))
+        .position(x: tile.frame.midX, y: tile.frame.midY)
+        .help("\(tile.item.path.path)\n\(tile.item.displaySize)")
+        .disabled(!tile.item.isTrashable || tile.item.scanError != nil)
+    }
+
+    private func color(for type: FileType) -> Color {
+        switch type {
+        case .app: return Color(red: 0.20, green: 0.43, blue: 0.95)
+        case .archive: return Color(red: 0.55, green: 0.32, blue: 0.75)
+        case .image: return Color(red: 0.86, green: 0.24, blue: 0.45)
+        case .video: return Color(red: 0.82, green: 0.23, blue: 0.20)
+        case .audio: return Color(red: 0.88, green: 0.49, blue: 0.13)
+        case .document, .spreadsheet: return Color(red: 0.17, green: 0.55, blue: 0.34)
+        case .code, .config, .web: return Color(red: 0.13, green: 0.55, blue: 0.67)
+        case .folder: return Color(red: 0.45, green: 0.47, blue: 0.50)
+        case .error: return .red
+        case .other: return Color(red: 0.36, green: 0.39, blue: 0.43)
+        }
+    }
+}
+
+struct TreemapTileModel: Identifiable {
+    let id: UUID
+    let item: FileItem
+    let frame: CGRect
+}
+
+enum TreemapLayout {
+    static func rectangles(for items: [FileItem], in bounds: CGRect) -> [TreemapTileModel] {
+        let sorted = items
+            .filter { $0.size > 0 }
+            .sorted { $0.size > $1.size }
+
+        return layout(items: sorted, in: bounds.insetBy(dx: 2, dy: 2))
+    }
+
+    private static func layout(items: [FileItem], in rect: CGRect) -> [TreemapTileModel] {
+        guard let first = items.first else { return [] }
+        guard items.count > 1 else {
+            return [TreemapTileModel(id: first.id, item: first, frame: rect)]
+        }
+
+        let total = max(1, items.reduce(Int64(0)) { $0 + max(0, $1.size) })
+        var groupSize: Int64 = 0
+        var splitIndex = 0
+
+        while splitIndex < items.count - 1 && groupSize < total / 2 {
+            groupSize += max(0, items[splitIndex].size)
+            splitIndex += 1
+        }
+
+        let firstItems = Array(items.prefix(splitIndex))
+        let secondItems = Array(items.dropFirst(splitIndex))
+        let ratio = CGFloat(groupSize) / CGFloat(total)
+        let firstRect: CGRect
+        let secondRect: CGRect
+
+        if rect.width >= rect.height {
+            let width = rect.width * ratio
+            firstRect = CGRect(x: rect.minX, y: rect.minY, width: width, height: rect.height)
+            secondRect = CGRect(x: rect.minX + width, y: rect.minY, width: rect.width - width, height: rect.height)
+        } else {
+            let height = rect.height * ratio
+            firstRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: height)
+            secondRect = CGRect(x: rect.minX, y: rect.minY + height, width: rect.width, height: rect.height - height)
+        }
+
+        return layout(items: firstItems, in: firstRect) + layout(items: secondItems, in: secondRect)
+    }
+}
+
 /// File list with checkboxes
 struct FileListView: View {
     let item: FileItem?
-    let currentPath: [UUID]
+    let canNavigateUp: Bool
     let onNavigate: (UUID) -> Void
+    let onNavigateUp: () -> Void
     let onSelect: (FileItem) -> Void
     let selectedItems: Set<UUID>
-    
-    private var currentItem: FileItem? {
-        guard let root = item else { return nil }
-        // Navigate to current depth
-        var current = root
-        for id in currentPath {
-            if let children = current.children {
-                current = children.first { $0.id == id } ?? current
-            }
-        }
-        return current
-    }
     
     var body: some View {
         List {
             // Up button if not at root
-            if !currentPath.isEmpty {
-                Button(action: { onNavigate(UUID()) }) {  // Empty UUID signals "go up"
+            if canNavigateUp {
+                Button(action: onNavigateUp) {
                     Label("Go Back", systemImage: "arrow.up")
                 }
                 .buttonStyle(.plain)
             }
             
             // Items
-            if let current = currentItem, let children = current.children {
+            if let current = item, let children = current.children {
                 ForEach(children) { child in
                     FileRowView(
                         item: child,
                         isSelected: selectedItems.contains(child.id),
                         onToggle: { onSelect(child) },
-                        onNavigate: child.isDirectory ? { onNavigate(child.id) } : nil
+                        onNavigate: child.isDirectory && child.scanError == nil ? { onNavigate(child.id) } : nil
                     )
                 }
             }
@@ -197,12 +382,20 @@ struct FileRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             // Checkbox
-            Toggle(isSelected ? "✓" : "", isOn: .constant(isSelected))
+            Toggle("", isOn: Binding(
+                get: { isSelected },
+                set: { newValue in
+                    if newValue != isSelected {
+                        onToggle()
+                    }
+                }
+            ))
                 .toggleStyle(.checkbox)
-                .onChange(of: isSelected) { _, _ in onToggle() }
+                .labelsHidden()
+                .disabled(!item.isTrashable || item.scanError != nil)
             
             // Icon
-            Image(systemName: item.isDirectory ? "folder.fill" : "doc")
+            Image(systemName: iconName)
                 .foregroundColor(color(for: item.fileType))
                 .frame(width: 20)
             
@@ -224,8 +417,21 @@ struct FileRowView: View {
             Text(item.displaySize)
                 .foregroundColor(.secondary)
                 .monospacedDigit()
+
+            if let scanError = item.scanError {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                    .help(scanError)
+            }
         }
         .padding(.vertical, 4)
+    }
+
+    private var iconName: String {
+        if item.scanError != nil {
+            return "exclamationmark.triangle.fill"
+        }
+        return item.isDirectory ? "folder.fill" : "doc"
     }
     
     private func color(for type: FileType) -> Color {
@@ -236,6 +442,7 @@ struct FileRowView: View {
         case .image, .video, .audio: return .pink
         case .code: return .cyan
         case .archive: return .purple
+        case .error: return .red
         default: return .gray
         }
     }
@@ -269,8 +476,4 @@ struct DeleteFooter: View {
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
     }
-}
-
-#Preview {
-    ScanView()
 }
