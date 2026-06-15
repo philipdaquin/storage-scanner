@@ -1,27 +1,44 @@
-# Sidebar App
+# StorageScanner
 
-This is a template repository for quickly creating boilerplate code for a SwiftUI macOS app.
+StorageScanner is a SwiftUI macOS app for understanding disk usage with a UI inspired by `ncdu`.
 
-# License
+It can scan the system root or a chosen folder, build a navigable size tree, and let you explore the results in both list and treemap views without re-scanning the filesystem every time you change the UI.
 
-This app is released into the public domain under The Unlicense. See LICENSE file for more information.
+## What It Does
 
-# Overview
+- Scans the full macOS filesystem root or a selected folder.
+- Builds a tree of folders and files with sizes, modification dates, and trashability info.
+- Lets you navigate with breadcrumbs and drill into folders.
+- Switches between a detailed list view and a treemap map view.
+- Shows scan progress while the scan is running.
+- Filters the current tree by categories like Applications, Documents, Downloads, and Media.
+- Selects items and moves them to Trash from inside the app.
+- Rescans the current target when you want fresh data.
 
-This is a Github template repository that you can create your new repository from by clicking the big green "Use this template" button on Github.
+## How It Works
 
-Here's a screenshot:
+The scanner walks the filesystem once, records the results into an in-memory tree, and then the UI renders that captured tree. That keeps view changes fast and avoids repeated filesystem work after the scan finishes.
 
-![Sidebar App](https://user-images.githubusercontent.com/384210/169694882-42e7bb8c-c576-42a8-a6ac-bb2794c76f95.png)
+On macOS, root scans need special handling because the sealed system volume and writable data volume expose the same content through multiple paths. StorageScanner accounts for that so the root scan stays much closer to `ncdu`-style accounting and avoids obvious double-counting of top-level system-volume aliases.
 
-What you get is an Xcode project with boilerplate code for a SwiftUI-based macOS app with a few things already set up:
+## Requirements
 
-- A sidebar plus a button and menu options for toggling the sidebar.
-- A menu bar button that shows a SwiftUI view when left-clicked or a menu when right clicked.
-- A siderbar search box, but also a detail view pane specific searchbox in the window toolbar.
-- A detail view pane with an example drop target for dropping files onto the window.
-- A custom About window containing a SwiftUI view, and an attributions view, also in SwiftUI.
-- A menu option for toggling whether the window should always float on top of other windows.
-- A custom menu for arbitrary menu options.
-- An Export menu option replacement.
-- A tabbed settings window.
+- macOS 12.3 or later
+- Xcode 16 or later
+
+## Run In Xcode
+
+1. Open `StorageScanner.xcodeproj`.
+2. Select the `StorageScanner` scheme.
+3. Build and run.
+4. Click `Scan Disk` to inspect the full system, or `Scan Folder` to choose a directory.
+
+## Notes
+
+- Scanning protected system locations may require macOS permissions.
+- Large filesystems can still take time to scan, but the app avoids unnecessary reprocessing after the scan completes.
+- The project is a local macOS app, not a packaged release.
+
+## License
+
+This project is released under the terms of the Unlicense. See [LICENSE](LICENSE) for details.
