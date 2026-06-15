@@ -23,13 +23,13 @@ struct ScanPresentationModifier: ViewModifier {
             } message: {
                 Text(viewModel.errorMessage)
             }
-            .alert("Move to Trash?", isPresented: $viewModel.showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Move to Trash", role: .destructive) {
-                    viewModel.confirmDelete()
-                }
-            } message: {
-                Text("Are you sure you want to move \(viewModel.selectedCount) item(s) (\(viewModel.selectedSizeFormatted)) to Trash?")
+            .sheet(isPresented: $viewModel.showDeleteConfirmation) {
+                DeleteReviewSheet(
+                    items: viewModel.selectedDeletionItems,
+                    selectedSize: viewModel.selectedSize,
+                    onCancel: { viewModel.showDeleteConfirmation = false },
+                    onConfirm: { viewModel.confirmDelete() }
+                )
             }
             .alert("Done", isPresented: $viewModel.hasSuccess) {
                 Button("OK") { viewModel.hasSuccess = false }

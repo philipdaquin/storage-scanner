@@ -37,6 +37,37 @@ struct ScanTreeIndex {
         nodesByID[id]?.item
     }
 
+    func topLevelSelectedItems(in selectedIDs: Set<UUID>) -> [FileItem] {
+        var items: [FileItem] = []
+
+        for id in selectedIDs {
+            guard let node = nodesByID[id] else { continue }
+
+            var hasSelectedAncestor = false
+            var parentID = node.parentID
+
+            while let id = parentID {
+                if selectedIDs.contains(id) {
+                    hasSelectedAncestor = true
+                    break
+                }
+                parentID = nodesByID[id]?.parentID
+            }
+
+            if !hasSelectedAncestor {
+                items.append(node.item)
+            }
+        }
+
+        items.sort {
+            if $0.size == $1.size {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.size > $1.size
+        }
+        return items
+    }
+
     func breadcrumbPath(for currentPath: [UUID]) -> [FileItem] {
         guard let rootID else { return [] }
 

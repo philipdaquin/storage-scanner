@@ -93,34 +93,18 @@ class ScanViewModel: ObservableObject {
     var breadcrumbs: [FileItem] {
         treeIndex.breadcrumbPath(for: currentPath)
     }
+
+    var selectedDeletionItems: [FileItem] {
+        treeIndex.topLevelSelectedItems(in: selectedItems)
+            .filter { $0.isTrashable && $0.scanError == nil }
+    }
     
     var selectedSize: Int64 {
-        guard !selectedItems.isEmpty else { return 0 }
-        guard let rootID = treeIndex.rootID else { return 0 }
-        return calculateSelectedSize(from: rootID)
+        selectedDeletionItems.reduce(Int64(0)) { $0 + $1.size }
     }
     
     var selectedSizeFormatted: String {
         ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file)
-    }
-    
-    private func calculateSelectedSize(from rootID: UUID) -> Int64 {
-        guard let rootNode = treeIndex.node(for: rootID) else { return 0 }
-
-        var total: Int64 = 0
-        var stack = [rootNode.item]
-
-        while let item = stack.popLast() {
-            if selectedItems.contains(item.id) {
-                total += item.size
-                continue
-            }
-
-            guard item.isDirectory, let children = item.children else { continue }
-            stack.append(contentsOf: children)
-        }
-
-        return total
     }
     
     /// Start scanning a folder
@@ -266,13 +250,13 @@ class ScanViewModel: ObservableObject {
         }
     }
     
-    /// Request delete confirmation (shows alert)
+    /// Request delete confirmation (shows review sheet)
     func deleteSelected() {
         guard !selectedItems.isEmpty else { return }
         showDeleteConfirmation = true
     }
     
-    /// Confirm delete after user clicks OK in alert
+    /// Confirm delete after reviewing the selected items
     func confirmDelete() {
         showDeleteConfirmation = false
         guard !selectedItems.isEmpty else { return }
@@ -280,9 +264,7 @@ class ScanViewModel: ObservableObject {
         let fileManager = FileManager.default
         var deletedSize: Int64 = 0
         var errors: [String] = []
-        // Collect all files to delete
-        let itemsToDelete = collectSelectedItems(from: treeIndex.rootID)
-            .filter { $0.isTrashable && $0.scanError == nil }
+        let itemsToDelete = selectedDeletionItems
         let nameCount = itemsToDelete.count
 
         guard !itemsToDelete.isEmpty else {
@@ -305,33 +287,59 @@ class ScanViewModel: ObservableObject {
             let saved = ByteCountFormatter.string(fromByteCount: deletedSize, countStyle: .file)
             successMessage = "Moved \(nameCount) item(s) (\(saved)) to Trash."
             hasSuccess = true
+            applyDeletionToCurrentTree(deletedIDs: Set(itemsToDelete.map(\.id)))
         } else {
             errorMessage = errors.joined(separator: "\n")
             hasError = true
         }
         
-        // Clear selections and rescan
+        // Clear selections after updating the loaded tree in place.
         selectedItems = []
-        rescan()
     }
-    
-    private func collectSelectedItems(from rootID: UUID?) -> [FileItem] {
-        guard let rootID, let rootNode = treeIndex.node(for: rootID) else { return [] }
 
-        var result: [FileItem] = []
-        var stack = [rootNode.item]
+    private func applyDeletionToCurrentTree(deletedIDs: Set<UUID>) {
+        guard let rootItem else { return }
 
-        while let item = stack.popLast() {
-            if selectedItems.contains(item.id) {
-                result.append(item)
-                continue
-            }
-
-            guard item.isDirectory, let children = item.children else { continue }
-            stack.append(contentsOf: children)
+        guard let updatedRoot = pruningDeletedItems(from: rootItem, deletedIDs: deletedIDs) else {
+            self.rootItem = nil
+            self.treeIndex = ScanTreeIndex(root: nil)
+            self.currentPath = []
+            self.treeVersion += 1
+            invalidateDerivedCaches()
+            return
         }
 
-        return result
+        self.rootItem = updatedRoot
+        self.treeIndex = ScanTreeIndex(root: updatedRoot)
+        self.treeVersion += 1
+        self.currentPath = trimmedCurrentPath()
+        invalidateDerivedCaches()
+    }
+
+    private func trimmedCurrentPath() -> [UUID] {
+        guard !currentPath.isEmpty else { return [] }
+
+        var path = currentPath
+        while let last = path.last, treeIndex.item(for: last) == nil {
+            path.removeLast()
+        }
+        return path
+    }
+
+    private func pruningDeletedItems(from item: FileItem, deletedIDs: Set<UUID>) -> FileItem? {
+        if deletedIDs.contains(item.id) {
+            return nil
+        }
+
+        guard item.isDirectory, let children = item.children else {
+            return item
+        }
+
+        let updatedChildren = children.compactMap { pruningDeletedItems(from: $0, deletedIDs: deletedIDs) }
+        var updatedItem = item
+        updatedItem.children = updatedChildren
+        updatedItem.size = updatedChildren.reduce(Int64(0)) { $0 + $1.size }
+        return updatedItem
     }
 
     private func invalidateDerivedCaches() {

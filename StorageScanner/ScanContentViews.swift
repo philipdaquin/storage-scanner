@@ -253,7 +253,7 @@ struct DeleteFooter: View {
             Spacer()
 
             Button(action: onDelete) {
-                Label("Move to Trash", systemImage: "trash")
+                Label("Review Trash", systemImage: "checklist")
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
@@ -261,5 +261,79 @@ struct DeleteFooter: View {
         }
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+}
+
+struct DeleteReviewSheet: View {
+    let items: [FileItem]
+    let selectedSize: Int64
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Review Items")
+                    .font(.title2.weight(.semibold))
+
+                Text("\(items.count) item(s), \(ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file)) potential space")
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+
+            Divider()
+
+            List(items) { item in
+                HStack(spacing: 12) {
+                    Image(systemName: item.isDirectory ? "folder.fill" : "doc")
+                        .foregroundColor(item.isDirectory ? .orange : .secondary)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.name)
+                            .lineLimit(1)
+                        Text(item.path.path)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Text(item.displaySize)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(minHeight: 260)
+
+            Divider()
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Potential space")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file))
+                        .font(.headline)
+                        .monospacedDigit()
+                }
+
+                Spacer()
+
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+
+                Button(role: .destructive, action: onConfirm) {
+                    Label("Move to Trash", systemImage: "trash")
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(items.isEmpty)
+            }
+            .padding()
+        }
+        .frame(minWidth: 620, minHeight: 420)
     }
 }
