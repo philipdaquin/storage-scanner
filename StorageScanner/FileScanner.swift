@@ -142,6 +142,7 @@ private struct ExclusionPattern {
 /// Async file scanner - scans directories and calculates sizes
 actor FileScanner {
     private let fileManager = FileManager.default
+    private let macOSDataVolumePath = "/System/Volumes/Data"
     private var isCancelled = false
     private var progressHandler: ((ScanProgress) -> Void)?
     private var filesScanned = 0
@@ -172,10 +173,12 @@ actor FileScanner {
         lastProgressUpdate = .distantPast
 
         let patterns = exclusions.map(ExclusionPattern.init)
+        let skipMacOSDataVolumeDuplication = url.path == "/"
         let root = try await scanDirectory(
             at: url,
             relativePath: "",
-            exclusions: patterns
+            exclusions: patterns,
+            skipMacOSDataVolumeDuplication: skipMacOSDataVolumeDuplication
         )
         return root
     }
@@ -194,7 +197,8 @@ actor FileScanner {
             let child = try await scanDirectory(
                 at: url,
                 relativePath: url.lastPathComponent,
-                exclusions: patterns
+                exclusions: patterns,
+                skipMacOSDataVolumeDuplication: false
             )
             totalSize += child.size
             children.append(child)
@@ -212,7 +216,12 @@ actor FileScanner {
             )
     }
 
-    private func scanDirectory(at url: URL, relativePath: String, exclusions: [ExclusionPattern]) async throws -> FileItem {
+    private func scanDirectory(
+        at url: URL,
+        relativePath: String,
+        exclusions: [ExclusionPattern],
+        skipMacOSDataVolumeDuplication: Bool
+    ) async throws -> FileItem {
         if isCancelled {
             throw ScanError.cancelled
         }
@@ -264,6 +273,14 @@ actor FileScanner {
             let childRelativePath = relativePath.isEmpty ? name : "\(relativePath)/\(name)"
             let childAbsolutePath = itemURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
+            // On macOS, the root volume exposes the writable data volume through
+            // both firmlinked top-level paths and /System/Volumes/Data. Skip the
+            // hidden data-volume subtree during a root scan so we do not count
+            // the same bytes twice.
+            if skipMacOSDataVolumeDuplication, itemURL.path == macOSDataVolumePath {
+                continue
+            }
+
             if exclusions.contains(where: { $0.matches(name: name, relativePath: childRelativePath, absolutePath: childAbsolutePath, isDirectory: isDirectory) }) {
                 continue
             }
@@ -275,7 +292,8 @@ actor FileScanner {
                 let child = try await scanDirectory(
                     at: itemURL,
                     relativePath: childRelativePath,
-                    exclusions: exclusions
+                    exclusions: exclusions,
+                    skipMacOSDataVolumeDuplication: skipMacOSDataVolumeDuplication
                 )
                 totalSize += child.size
                 children.append(child)
