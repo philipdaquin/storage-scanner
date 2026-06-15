@@ -24,6 +24,13 @@ class ScanViewModel: ObservableObject {
     private let scanner = FileScanner()
     private var lastScanRequest: ScanRequest?
     private var suppressNextCategoryScan = false
+    private var treeVersion = 0
+    private var currentItemCacheKey = ""
+    private var currentItemCache: FileItem?
+    private var displayedItemCacheKey = ""
+    private var displayedItemCache: FileItem?
+    private var treemapItemsCacheKey = ""
+    private var treemapItemsCache: [FileItem] = []
 
     private enum ScanRequest {
         case single(URL)
@@ -35,7 +42,15 @@ class ScanViewModel: ObservableObject {
     }
 
     var currentItem: FileItem? {
-        item(for: currentPath)
+        let key = pathCacheKey()
+        if currentItemCacheKey == key {
+            return currentItemCache
+        }
+
+        let item = item(for: currentPath)
+        currentItemCacheKey = key
+        currentItemCache = item
+        return item
     }
 
     var displayedItem: FileItem? {
@@ -44,8 +59,13 @@ class ScanViewModel: ObservableObject {
             return currentItem
         }
 
+        let key = "\(pathCacheKey())|\(selectedCategory.rawValue)"
+        if displayedItemCacheKey == key {
+            return displayedItemCache
+        }
+
         let matches = matchingItems(in: currentItem, category: selectedCategory)
-        return FileItem(
+        let item = FileItem(
             name: selectedCategory.rawValue,
             path: currentItem.path,
             size: matches.reduce(Int64(0)) { $0 + $1.size },
@@ -53,11 +73,23 @@ class ScanViewModel: ObservableObject {
             children: matches,
             isTrashable: false
         )
+        displayedItemCacheKey = key
+        displayedItemCache = item
+        return item
     }
 
     var treemapItems: [FileItem] {
         guard let displayedItem else { return [] }
-        return Array(largestRenderableItems(in: displayedItem).prefix(160))
+
+        let key = "\(pathCacheKey())|\(selectedCategory?.rawValue ?? "all")|\(displayedItem.id.uuidString)"
+        if treemapItemsCacheKey == key {
+            return treemapItemsCache
+        }
+
+        let items = directRenderableChildren(of: displayedItem, limit: 160)
+        treemapItemsCacheKey = key
+        treemapItemsCache = items
+        return items
     }
 
     var breadcrumbs: [FileItem] {
@@ -75,7 +107,8 @@ class ScanViewModel: ObservableObject {
     }
     
     var selectedSize: Int64 {
-        calculateSelectedSize(item: rootItem)
+        guard !selectedItems.isEmpty else { return 0 }
+        return calculateSelectedSize(item: rootItem)
     }
     
     var selectedSizeFormatted: String {
@@ -128,6 +161,7 @@ class ScanViewModel: ObservableObject {
     func applyCategory(_ category: CategorySidebar.Category?) {
         selectedCategory = category
         currentPath = []
+        invalidateDerivedCaches()
 
         if suppressNextCategoryScan, category == .all {
             suppressNextCategoryScan = false
@@ -151,6 +185,7 @@ class ScanViewModel: ObservableObject {
         currentPath = []
         selectedItems = []
         rootItem = nil
+        invalidateDerivedCaches()
         
         Task {
             await self.scanner.setProgressHandler { [weak self] progress in
@@ -165,6 +200,8 @@ class ScanViewModel: ObservableObject {
                 let result = try await scanOperation()
                 await MainActor.run {
                     self.rootItem = result
+                    self.treeVersion += 1
+                    self.invalidateDerivedCaches()
                     self.isScanning = false
                     self.hasScanned = true
                     self.scanProgressText = "Scan complete"
@@ -227,21 +264,25 @@ class ScanViewModel: ObservableObject {
         }
 
         currentPath.append(id)
+        invalidateDerivedCaches()
     }
 
     func navigateUp() {
         guard !currentPath.isEmpty else { return }
         currentPath.removeLast()
+        invalidateDerivedCaches()
     }
 
     func navigateToBreadcrumb(_ item: FileItem) {
         guard item.id != rootItem?.id else {
             currentPath = []
+            invalidateDerivedCaches()
             return
         }
 
         if let index = currentPath.firstIndex(of: item.id) {
             currentPath = Array(currentPath.prefix(through: index))
+            invalidateDerivedCaches()
         }
     }
     
@@ -323,6 +364,20 @@ class ScanViewModel: ObservableObject {
         return current
     }
 
+    private func invalidateDerivedCaches() {
+        currentItemCacheKey = ""
+        currentItemCache = nil
+        displayedItemCacheKey = ""
+        displayedItemCache = nil
+        treemapItemsCacheKey = ""
+        treemapItemsCache = []
+    }
+
+    private func pathCacheKey() -> String {
+        let path = currentPath.map(\.uuidString).joined(separator: "/")
+        return "\(treeVersion)|\(path)"
+    }
+
     private func matchingItems(in item: FileItem, category: CategorySidebar.Category) -> [FileItem] {
         var matches: [FileItem] = []
 
@@ -344,28 +399,19 @@ class ScanViewModel: ObservableObject {
         return matches
     }
 
-    private func largestRenderableItems(in item: FileItem) -> [FileItem] {
-        var items: [FileItem] = []
+    private func directRenderableChildren(of item: FileItem, limit: Int) -> [FileItem] {
+        guard let children = item.children else { return [] }
 
-        func collect(_ node: FileItem) {
-            guard node.size > 0, node.scanError == nil else { return }
-
-            if node.children?.isEmpty != false || node.fileType == .app {
-                items.append(node)
-                return
-            }
-
-            node.children?.forEach(collect)
-        }
-
-        item.children?.forEach(collect)
-
-        return items.sorted {
+        return children
+            .filter { $0.size > 0 && $0.scanError == nil }
+            .sorted {
             if $0.size == $1.size {
                 return $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
             return $0.size > $1.size
-        }
+            }
+            .prefix(limit)
+            .map { $0 }
     }
 }
 

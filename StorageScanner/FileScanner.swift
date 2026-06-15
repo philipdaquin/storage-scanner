@@ -146,6 +146,7 @@ actor FileScanner {
     private var progressHandler: ((ScanProgress) -> Void)?
     private var filesScanned = 0
     private var totalSizeScanned: Int64 = 0
+    private var lastProgressUpdate = Date.distantPast
     
     struct ScanProgress: Sendable {
         let filesScanned: Int
@@ -168,6 +169,7 @@ actor FileScanner {
         isCancelled = false
         filesScanned = 0
         totalSizeScanned = 0
+        lastProgressUpdate = .distantPast
 
         let patterns = exclusions.map(ExclusionPattern.init)
         let root = try await scanDirectory(
@@ -182,6 +184,7 @@ actor FileScanner {
         isCancelled = false
         filesScanned = 0
         totalSizeScanned = 0
+        lastProgressUpdate = .distantPast
 
         let patterns = exclusions.map(ExclusionPattern.init)
         var children: [FileItem] = []
@@ -228,11 +231,7 @@ actor FileScanner {
         let directoryOwnSize = allocatedSize(from: directoryValues)
         filesScanned += 1
         totalSizeScanned += directoryOwnSize
-        progressHandler?(ScanProgress(
-            filesScanned: filesScanned,
-            currentPath: url.path,
-            totalSize: totalSizeScanned
-        ))
+        reportProgress(currentPath: url.path)
 
         let contents: [URL]
         do {
@@ -284,11 +283,7 @@ actor FileScanner {
                 totalSize += size
                 filesScanned += 1
                 totalSizeScanned += size
-                progressHandler?(ScanProgress(
-                    filesScanned: filesScanned,
-                    currentPath: itemURL.path,
-                    totalSize: totalSizeScanned
-                ))
+                reportProgress(currentPath: itemURL.path)
                 children.append(FileItem(
                     name: name,
                     path: itemURL,
@@ -301,11 +296,7 @@ actor FileScanner {
         }
 
         children.sort(by: sortBySizeThenName)
-        progressHandler?(ScanProgress(
-            filesScanned: filesScanned,
-            currentPath: url.path,
-            totalSize: totalSizeScanned
-        ))
+        reportProgress(currentPath: url.path, force: true)
         
         return FileItem(
             name: displayName(for: url),
@@ -326,6 +317,20 @@ actor FileScanner {
             return Int64(totalFileAllocatedSize)
         }
         return Int64(values?.fileSize ?? 0)
+    }
+
+    private func reportProgress(currentPath: String, force: Bool = false) {
+        let now = Date()
+        guard force || now.timeIntervalSince(lastProgressUpdate) >= 0.1 else {
+            return
+        }
+
+        lastProgressUpdate = now
+        progressHandler?(ScanProgress(
+            filesScanned: filesScanned,
+            currentPath: currentPath,
+            totalSize: totalSizeScanned
+        ))
     }
 
     private func sortBySizeThenName(_ lhs: FileItem, _ rhs: FileItem) -> Bool {
