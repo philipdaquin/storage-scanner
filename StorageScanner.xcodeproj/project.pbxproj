@@ -46,6 +46,7 @@
 		51B7A0052C00000100A1B2C3 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0042C00000100A1B2C3 /* ScanView.swift */; };
 		51B7A0072C00000100A1B2C3 /* ScanTreeIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0062C00000100A1B2C3 /* ScanTreeIndex.swift */; };
 		51B7A0092C00000100A1B2C3 /* ScanCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0082C00000100A1B2C3 /* ScanCategory.swift */; };
+		51B7A00B2C00000100A1B2C3 /* TreemapLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A00A2C00000100A1B2C3 /* TreemapLayout.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -90,6 +91,7 @@
 		51B7A0042C00000100A1B2C3 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		51B7A0062C00000100A1B2C3 /* ScanTreeIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanTreeIndex.swift; sourceTree = "<group>"; };
 		51B7A0082C00000100A1B2C3 /* ScanCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCategory.swift; sourceTree = "<group>"; };
+		51B7A00A2C00000100A1B2C3 /* TreemapLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreemapLayout.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,6 +138,7 @@
 				51B7A0042C00000100A1B2C3 /* ScanView.swift */,
 				51B7A0062C00000100A1B2C3 /* ScanTreeIndex.swift */,
 				51B7A0082C00000100A1B2C3 /* ScanCategory.swift */,
+				51B7A00A2C00000100A1B2C3 /* TreemapLayout.swift */,
 				4180AEC3283979530054FEA9 /* MainView.swift */,
 				4180AEBC283975670054FEA9 /* MainScene.swift */,
 				4180AEAD2839753E0054FEA9 /* SidebarApp.swift */,
@@ -383,6 +386,7 @@
 				51B7A0052C00000100A1B2C3 /* ScanView.swift in Sources */,
 				51B7A0072C00000100A1B2C3 /* ScanTreeIndex.swift in Sources */,
 				51B7A0092C00000100A1B2C3 /* ScanCategory.swift in Sources */,
+				51B7A00B2C00000100A1B2C3 /* TreemapLayout.swift in Sources */,
 				4180AED428397F790054FEA9 /* SidebarPane.swift in Sources */,
 				4180AECC28397C6F0054FEA9 /* HelloWorldPane.swift in Sources */,
 			);
