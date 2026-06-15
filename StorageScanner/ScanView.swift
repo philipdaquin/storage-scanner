@@ -180,29 +180,11 @@ struct BreadcrumbBar: View {
 
 /// Category sidebar
 struct CategorySidebar: View {
-    @Binding var selectedCategory: Category?
-    
-    enum Category: String, CaseIterable {
-        case all = "All"
-        case apps = "Applications"
-        case documents = "Documents"
-        case downloads = "Downloads"
-        case media = "Media"
-        
-        var icon: String {
-            switch self {
-            case .all: return "square.grid.2x2"
-            case .apps: return "app.badge"
-            case .documents: return "doc.text"
-            case .downloads: return "arrow.down.circle"
-            case .media: return "play.circle"
-            }
-        }
-    }
-    
+    @Binding var selectedCategory: ScanCategory?
+
     var body: some View {
         List(selection: $selectedCategory) {
-            ForEach(Category.allCases, id: \.self) { category in
+            ForEach(ScanCategory.allCases) { category in
                 Label(category.rawValue, systemImage: category.icon)
                     .tag(category)
             }

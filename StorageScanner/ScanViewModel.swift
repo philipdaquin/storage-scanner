@@ -1,6 +1,4 @@
 import SwiftUI
-import AppKit
-import UniformTypeIdentifiers
 
 /// View model for the scan view
 @MainActor
@@ -10,7 +8,7 @@ class ScanViewModel: ObservableObject {
     @Published var selectedItems: Set<UUID> = []
     @Published var isScanning = false
     @Published var hasScanned = false
-    @Published var selectedCategory: CategorySidebar.Category?
+    @Published var selectedCategory: ScanCategory?
     @Published var hasError = false
     @Published var errorMessage = ""
     @Published var showDeleteConfirmation = false
@@ -153,7 +151,7 @@ class ScanViewModel: ObservableObject {
         scan(url: URL(fileURLWithPath: "/", isDirectory: true))
     }
 
-    func applyCategory(_ category: CategorySidebar.Category?) {
+    func applyCategory(_ category: ScanCategory?) {
         selectedCategory = category
         currentPath = []
         invalidateDerivedCaches()
@@ -386,41 +384,4 @@ enum ScanViewMode: String, CaseIterable, Identifiable {
     case map = "Map"
 
     var id: String { rawValue }
-}
-
-extension CategorySidebar.Category {
-    func matches(_ item: FileItem) -> Bool {
-        switch self {
-        case .all:
-            return true
-        case .apps:
-            return item.fileType == .app || item.path.path.contains("/Applications/")
-        case .documents:
-            return [.document, .spreadsheet, .pdfLike].contains(item.categoryKind)
-        case .downloads:
-            return item.path.path.contains("/Downloads/")
-        case .media:
-            return [.image, .video, .audio].contains(item.fileType)
-        }
-    }
-}
-
-private enum FileCategoryKind {
-    case document
-    case spreadsheet
-    case pdfLike
-    case other
-}
-
-private extension FileItem {
-    var categoryKind: FileCategoryKind {
-        switch fileType {
-        case .document:
-            return path.pathExtension.lowercased() == "pdf" ? .pdfLike : .document
-        case .spreadsheet:
-            return .spreadsheet
-        default:
-            return .other
-        }
-    }
 }
