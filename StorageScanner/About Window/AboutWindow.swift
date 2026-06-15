@@ -20,7 +20,7 @@ class AboutWindow: NSWindowController {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.center()
-        window.title = "About Bootstrapp"
+        window.title = "About StorageScanner"
         window.contentView = NSHostingView(rootView: contentView)
         window.alwaysOnTop = true
     }
