@@ -63,7 +63,9 @@ class ScanViewModel: ObservableObject {
             return displayedItemCache
         }
 
-        let matches = matchingItems(in: currentItem, category: selectedCategory)
+        let matches = treeIndex.matchingDescendants(of: currentItem.id) {
+            selectedCategory.matches($0)
+        }
         let item = FileItem(
             name: selectedCategory.rawValue,
             path: currentItem.path,
@@ -361,27 +363,6 @@ class ScanViewModel: ObservableObject {
     private func pathCacheKey() -> String {
         let path = currentPath.map(\.uuidString).joined(separator: "/")
         return "\(treeVersion)|\(path)"
-    }
-
-    private func matchingItems(in item: FileItem, category: CategorySidebar.Category) -> [FileItem] {
-        var matches: [FileItem] = []
-
-        if item.id != rootItem?.id, category.matches(item) {
-            matches.append(item)
-        }
-
-        for child in item.children ?? [] {
-            matches.append(contentsOf: matchingItems(in: child, category: category))
-        }
-
-        matches.sort {
-            if $0.size == $1.size {
-                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
-            }
-            return $0.size > $1.size
-        }
-
-        return matches
     }
 
     private func directRenderableChildren(of item: FileItem, limit: Int) -> [FileItem] {

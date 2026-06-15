@@ -13,7 +13,20 @@ struct ScanTreeIndex {
     init(root: FileItem?) {
         guard let root else { return }
         rootID = root.id
-        buildIndex(for: root, parentID: nil)
+        var stack: [(item: FileItem, parentID: UUID?)] = [(root, nil)]
+
+        while let entry = stack.popLast() {
+            let childIDs = entry.item.children?.map(\.id) ?? []
+            nodesByID[entry.item.id] = Node(
+                item: entry.item,
+                parentID: entry.parentID,
+                childIDs: childIDs
+            )
+
+            for child in (entry.item.children ?? []).reversed() {
+                stack.append((child, entry.item.id))
+            }
+        }
     }
 
     func node(for id: UUID) -> Node? {
@@ -53,31 +66,30 @@ struct ScanTreeIndex {
         return path.reversed()
     }
 
-    func descendants(of id: UUID) -> [FileItem] {
+    func matchingDescendants(of id: UUID, where includesItem: (FileItem) -> Bool) -> [FileItem] {
         guard let node = nodesByID[id] else { return [] }
 
-        var result: [FileItem] = [node.item]
-        for childID in node.childIDs {
-            result.append(contentsOf: descendants(of: childID))
-        }
-        return result
-    }
+        var matches: [FileItem] = []
+        var stack: [UUID] = [node.item.id]
 
-    func descendantIDs(of id: UUID) -> [UUID] {
-        guard let node = nodesByID[id] else { return [] }
+        while let currentID = stack.popLast() {
+            guard let currentNode = nodesByID[currentID] else { continue }
 
-        var result: [UUID] = [node.item.id]
-        for childID in node.childIDs {
-            result.append(contentsOf: descendantIDs(of: childID))
-        }
-        return result
-    }
+            if currentNode.item.id != rootID, includesItem(currentNode.item) {
+                matches.append(currentNode.item)
+            }
 
-    private mutating func buildIndex(for item: FileItem, parentID: UUID?) {
-        let childIDs = item.children?.map(\.id) ?? []
-        nodesByID[item.id] = Node(item: item, parentID: parentID, childIDs: childIDs)
-        for child in item.children ?? [] {
-            buildIndex(for: child, parentID: item.id)
+            for childID in currentNode.childIDs.reversed() {
+                stack.append(childID)
+            }
         }
+
+        matches.sort {
+            if $0.size == $1.size {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.size > $1.size
+        }
+        return matches
     }
 }
