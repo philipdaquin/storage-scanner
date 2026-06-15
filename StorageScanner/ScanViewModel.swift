@@ -21,7 +21,6 @@ class ScanViewModel: ObservableObject {
     
     private let scanner = FileScanner()
     private var lastScanRequest: ScanRequest?
-    private var suppressNextCategoryScan = false
     private var treeVersion = 0
     private var treeIndex = ScanTreeIndex(root: nil)
     private var displayedItemCacheKey = ""
@@ -142,12 +141,6 @@ class ScanViewModel: ObservableObject {
     func scanDisk() {
         guard !isScanning else { return }
 
-        if selectedCategory != .all {
-            suppressNextCategoryScan = true
-            selectedCategory = .all
-        } else {
-            suppressNextCategoryScan = false
-        }
         scan(url: URL(fileURLWithPath: "/", isDirectory: true))
     }
 
@@ -155,16 +148,6 @@ class ScanViewModel: ObservableObject {
         selectedCategory = category
         currentPath = []
         invalidateDerivedCaches()
-
-        if suppressNextCategoryScan, category == .all {
-            suppressNextCategoryScan = false
-            return
-        }
-        suppressNextCategoryScan = false
-
-        if !isScanning, rootItem == nil, category == .all {
-            scanDisk()
-        }
     }
 
     private func startScan(_ scanOperation: @escaping () async throws -> FileItem) {
