@@ -18,17 +18,24 @@ struct ScanView: View {
                         Label("Scan Disk", systemImage: "internaldrive")
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.isScanning)
 
                     Button(action: { showingFolderPicker = true }) {
                         Label("Scan Folder", systemImage: "folder.badge.gearshape")
                     }
                     .buttonStyle(.bordered)
+                    .disabled(viewModel.isScanning)
                     
                     if viewModel.isScanning {
                         ProgressView()
                             .scaleEffect(0.8)
-                        Text("Scanning...")
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(viewModel.scanProgressText.isEmpty ? "Scanning..." : viewModel.scanProgressText)
+                                .foregroundColor(.secondary)
+                            Text("\(viewModel.scanFilesScanned) items, \(ByteCountFormatter.string(fromByteCount: viewModel.scanTotalSize, countStyle: .file))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
 
                     if viewModel.hasScanned {

@@ -17,9 +17,13 @@ class ScanViewModel: ObservableObject {
     @Published var hasSuccess = false
     @Published var successMessage = ""
     @Published var viewMode: ScanViewMode = .list
+    @Published var scanProgressText = ""
+    @Published var scanFilesScanned = 0
+    @Published var scanTotalSize: Int64 = 0
     
     private let scanner = FileScanner()
     private var lastScanRequest: ScanRequest?
+    private var suppressNextCategoryScan = false
 
     private enum ScanRequest {
         case single(URL)
@@ -96,6 +100,8 @@ class ScanViewModel: ObservableObject {
     
     /// Start scanning a folder
     func scan(url: URL) {
+        guard !isScanning else { return }
+
         lastScanRequest = .single(url)
         let accessURLs = [url]
         startScan {
@@ -108,7 +114,14 @@ class ScanViewModel: ObservableObject {
     }
 
     func scanDisk() {
-        selectedCategory = .all
+        guard !isScanning else { return }
+
+        if selectedCategory != .all {
+            suppressNextCategoryScan = true
+            selectedCategory = .all
+        } else {
+            suppressNextCategoryScan = false
+        }
         scan(url: URL(fileURLWithPath: "/", isDirectory: true))
     }
 
@@ -116,7 +129,13 @@ class ScanViewModel: ObservableObject {
         selectedCategory = category
         currentPath = []
 
-        if rootItem == nil, category == .all {
+        if suppressNextCategoryScan, category == .all {
+            suppressNextCategoryScan = false
+            return
+        }
+        suppressNextCategoryScan = false
+
+        if !isScanning, rootItem == nil, category == .all {
             scanDisk()
         }
     }
@@ -124,25 +143,42 @@ class ScanViewModel: ObservableObject {
     private func startScan(_ scanOperation: @escaping () async throws -> FileItem) {
         isScanning = true
         hasScanned = false
+        hasError = false
+        errorMessage = ""
+        scanProgressText = "Starting scan..."
+        scanFilesScanned = 0
+        scanTotalSize = 0
         currentPath = []
         selectedItems = []
         rootItem = nil
         
         Task {
+            await self.scanner.setProgressHandler { [weak self] progress in
+                Task { @MainActor in
+                    self?.scanFilesScanned = progress.filesScanned
+                    self?.scanTotalSize = progress.totalSize
+                    self?.scanProgressText = "Scanning \(progress.currentPath)"
+                }
+            }
+
             do {
                 let result = try await scanOperation()
                 await MainActor.run {
                     self.rootItem = result
                     self.isScanning = false
                     self.hasScanned = true
+                    self.scanProgressText = "Scan complete"
                 }
             } catch {
                 await MainActor.run {
                     self.isScanning = false
                     self.hasError = true
                     self.errorMessage = error.localizedDescription
+                    self.scanProgressText = ""
                 }
             }
+
+            await self.scanner.setProgressHandler { _ in }
         }
     }
     

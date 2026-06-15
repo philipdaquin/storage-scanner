@@ -144,8 +144,10 @@ actor FileScanner {
     private let fileManager = FileManager.default
     private var isCancelled = false
     private var progressHandler: ((ScanProgress) -> Void)?
+    private var filesScanned = 0
+    private var totalSizeScanned: Int64 = 0
     
-    struct ScanProgress {
+    struct ScanProgress: Sendable {
         let filesScanned: Int
         let currentPath: String
         let totalSize: Int64
@@ -164,6 +166,8 @@ actor FileScanner {
     /// Scan a directory recursively
     func scan(url: URL, exclusions: [String] = defaultExclusions) async throws -> FileItem {
         isCancelled = false
+        filesScanned = 0
+        totalSizeScanned = 0
 
         let patterns = exclusions.map(ExclusionPattern.init)
         let root = try await scanDirectory(
@@ -176,6 +180,8 @@ actor FileScanner {
 
     func scan(urls: [URL], displayName: String, exclusions: [String] = defaultExclusions) async throws -> FileItem {
         isCancelled = false
+        filesScanned = 0
+        totalSizeScanned = 0
 
         let patterns = exclusions.map(ExclusionPattern.init)
         var children: [FileItem] = []
@@ -220,6 +226,13 @@ actor FileScanner {
 
         let directoryValues = try? url.resourceValues(forKeys: resourceKeys)
         let directoryOwnSize = allocatedSize(from: directoryValues)
+        filesScanned += 1
+        totalSizeScanned += directoryOwnSize
+        progressHandler?(ScanProgress(
+            filesScanned: filesScanned,
+            currentPath: url.path,
+            totalSize: totalSizeScanned
+        ))
 
         let contents: [URL]
         do {
@@ -269,6 +282,13 @@ actor FileScanner {
                 children.append(child)
             } else {
                 totalSize += size
+                filesScanned += 1
+                totalSizeScanned += size
+                progressHandler?(ScanProgress(
+                    filesScanned: filesScanned,
+                    currentPath: itemURL.path,
+                    totalSize: totalSizeScanned
+                ))
                 children.append(FileItem(
                     name: name,
                     path: itemURL,
@@ -279,8 +299,13 @@ actor FileScanner {
                 ))
             }
         }
-        
+
         children.sort(by: sortBySizeThenName)
+        progressHandler?(ScanProgress(
+            filesScanned: filesScanned,
+            currentPath: url.path,
+            totalSize: totalSizeScanned
+        ))
         
         return FileItem(
             name: displayName(for: url),
