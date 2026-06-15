@@ -25,8 +25,7 @@ class ScanViewModel: ObservableObject {
     private var lastScanRequest: ScanRequest?
     private var suppressNextCategoryScan = false
     private var treeVersion = 0
-    private var currentItemCacheKey = ""
-    private var currentItemCache: FileItem?
+    private var treeIndex = ScanTreeIndex(root: nil)
     private var displayedItemCacheKey = ""
     private var displayedItemCache: FileItem?
     private var treemapItemsCacheKey = ""
@@ -42,15 +41,15 @@ class ScanViewModel: ObservableObject {
     }
 
     var currentItem: FileItem? {
-        let key = pathCacheKey()
-        if currentItemCacheKey == key {
-            return currentItemCache
+        if currentPath.isEmpty {
+            return rootItem
         }
 
-        let item = item(for: currentPath)
-        currentItemCacheKey = key
-        currentItemCache = item
-        return item
+        guard let currentID = currentPath.last else {
+            return rootItem
+        }
+
+        return treeIndex.item(for: currentID) ?? rootItem
     }
 
     var displayedItem: FileItem? {
@@ -93,41 +92,35 @@ class ScanViewModel: ObservableObject {
     }
 
     var breadcrumbs: [FileItem] {
-        guard var current = rootItem else { return [] }
-
-        var items = [current]
-        for id in currentPath {
-            guard let next = current.children?.first(where: { $0.id == id }) else {
-                break
-            }
-            items.append(next)
-            current = next
-        }
-        return items
+        treeIndex.breadcrumbPath(for: currentPath)
     }
     
     var selectedSize: Int64 {
         guard !selectedItems.isEmpty else { return 0 }
-        return calculateSelectedSize(item: rootItem)
+        guard let rootID = treeIndex.rootID else { return 0 }
+        return calculateSelectedSize(from: rootID)
     }
     
     var selectedSizeFormatted: String {
         ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file)
     }
     
-    private func calculateSelectedSize(item: FileItem?) -> Int64 {
-        guard let item = item else { return 0 }
-        
+    private func calculateSelectedSize(from rootID: UUID) -> Int64 {
+        guard let rootNode = treeIndex.node(for: rootID) else { return 0 }
+
         var total: Int64 = 0
-        if item.isDirectory, let children = item.children {
-            for child in children {
-                if selectedItems.contains(child.id) {
-                    total += child.size
-                } else {
-                    total += calculateSelectedSize(item: child)
-                }
+        var stack = [rootNode.item]
+
+        while let item = stack.popLast() {
+            if selectedItems.contains(item.id) {
+                total += item.size
+                continue
             }
+
+            guard item.isDirectory, let children = item.children else { continue }
+            stack.append(contentsOf: children)
         }
+
         return total
     }
     
@@ -185,6 +178,7 @@ class ScanViewModel: ObservableObject {
         currentPath = []
         selectedItems = []
         rootItem = nil
+        treeIndex = ScanTreeIndex(root: nil)
         invalidateDerivedCaches()
         
         Task {
@@ -200,6 +194,7 @@ class ScanViewModel: ObservableObject {
                 let result = try await scanOperation()
                 await MainActor.run {
                     self.rootItem = result
+                    self.treeIndex = ScanTreeIndex(root: result)
                     self.treeVersion += 1
                     self.invalidateDerivedCaches()
                     self.isScanning = false
@@ -259,7 +254,9 @@ class ScanViewModel: ObservableObject {
     func navigateTo(_ id: UUID) {
         guard selectedCategory == nil || selectedCategory == .all,
               let current = currentItem,
-              current.children?.contains(where: { $0.id == id && $0.isDirectory }) == true else {
+              let currentNode = treeIndex.node(for: current.id),
+              currentNode.childIDs.contains(id),
+              treeIndex.item(for: id)?.isDirectory == true else {
             return
         }
 
@@ -301,7 +298,7 @@ class ScanViewModel: ObservableObject {
         var deletedSize: Int64 = 0
         var errors: [String] = []
         // Collect all files to delete
-        let itemsToDelete = collectSelectedItems(from: rootItem)
+        let itemsToDelete = collectSelectedItems(from: treeIndex.rootID)
             .filter { $0.isTrashable && $0.scanError == nil }
         let nameCount = itemsToDelete.count
 
@@ -335,38 +332,26 @@ class ScanViewModel: ObservableObject {
         rescan()
     }
     
-    private func collectSelectedItems(from item: FileItem?) -> [FileItem] {
-        guard let item = item else { return [] }
-        
+    private func collectSelectedItems(from rootID: UUID?) -> [FileItem] {
+        guard let rootID, let rootNode = treeIndex.node(for: rootID) else { return [] }
+
         var result: [FileItem] = []
-        
-        if selectedItems.contains(item.id) {
-            result.append(item)
-        } else if item.isDirectory, let children = item.children {
-            for child in children {
-                result.append(contentsOf: collectSelectedItems(from: child))
+        var stack = [rootNode.item]
+
+        while let item = stack.popLast() {
+            if selectedItems.contains(item.id) {
+                result.append(item)
+                continue
             }
+
+            guard item.isDirectory, let children = item.children else { continue }
+            stack.append(contentsOf: children)
         }
-        
+
         return result
     }
 
-    private func item(for path: [UUID]) -> FileItem? {
-        guard var current = rootItem else { return nil }
-
-        for id in path {
-            guard let next = current.children?.first(where: { $0.id == id }) else {
-                return current
-            }
-            current = next
-        }
-
-        return current
-    }
-
     private func invalidateDerivedCaches() {
-        currentItemCacheKey = ""
-        currentItemCache = nil
         displayedItemCacheKey = ""
         displayedItemCache = nil
         treemapItemsCacheKey = ""
