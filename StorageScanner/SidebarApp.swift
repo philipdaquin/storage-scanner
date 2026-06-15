@@ -5,9 +5,10 @@ struct StorageScanner: App {
     
     /// Legacy app delegate.
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var sparkleUpdater = SparkleUpdateController()
     
     var body: some Scene {
-        MainScene()
+        MainScene(updater: sparkleUpdater)
     }
 }
 

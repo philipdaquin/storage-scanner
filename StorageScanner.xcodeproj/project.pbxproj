@@ -51,6 +51,8 @@
 		51B7A00F2C00000100A1B2C3 /* ScanWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A00E2C00000100A1B2C3 /* ScanWorkspaceView.swift */; };
 		51B7A0112C00000100A1B2C3 /* ScanHeaderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0102C00000100A1B2C3 /* ScanHeaderViews.swift */; };
 		51B7A0132C00000100A1B2C3 /* ScanPresentationModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0122C00000100A1B2C3 /* ScanPresentationModifier.swift */; };
+		51B7A0152C00000100A1B2C3 /* SparkleUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0142C00000100A1B2C3 /* SparkleUpdateController.swift */; };
+		51B7A0172C00000100A1B2C3 /* UpdateCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0162C00000100A1B2C3 /* UpdateCommands.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -100,6 +102,8 @@
 		51B7A00E2C00000100A1B2C3 /* ScanWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanWorkspaceView.swift; sourceTree = "<group>"; };
 		51B7A0102C00000100A1B2C3 /* ScanHeaderViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanHeaderViews.swift; sourceTree = "<group>"; };
 		51B7A0122C00000100A1B2C3 /* ScanPresentationModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPresentationModifier.swift; sourceTree = "<group>"; };
+		51B7A0142C00000100A1B2C3 /* SparkleUpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdateController.swift; sourceTree = "<group>"; };
+		51B7A0162C00000100A1B2C3 /* UpdateCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCommands.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,10 +111,34 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				51B7A0192C00000100A1B2C3 /* Sparkle.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXBuildFile section (package products) */
+		51B7A0192C00000100A1B2C3 /* Sparkle.framework in Frameworks */ = {isa = PBXBuildFile; productRef = 51B7A01B2C00000100A1B2C3 /* Sparkle */; };
+/* End PBXBuildFile section (package products) */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		51B7A01B2C00000100A1B2C3 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXGroup section */
 		4180AEA12839753E0054FEA9 = {
@@ -151,6 +179,7 @@
 				51B7A00E2C00000100A1B2C3 /* ScanWorkspaceView.swift */,
 				51B7A0102C00000100A1B2C3 /* ScanHeaderViews.swift */,
 				51B7A0122C00000100A1B2C3 /* ScanPresentationModifier.swift */,
+				51B7A0142C00000100A1B2C3 /* SparkleUpdateController.swift */,
 				4180AEC3283979530054FEA9 /* MainView.swift */,
 				4180AEBC283975670054FEA9 /* MainScene.swift */,
 				4180AEAD2839753E0054FEA9 /* SidebarApp.swift */,
@@ -214,6 +243,7 @@
 			isa = PBXGroup;
 			children = (
 				4180AEE628399E160054FEA9 /* MyCommands.swift */,
+				51B7A0162C00000100A1B2C3 /* UpdateCommands.swift */,
 			);
 			path = "My Menu Commands";
 			sourceTree = "<group>";
@@ -308,6 +338,9 @@
 			);
 			dependencies = (
 			);
+			packageProductDependencies = (
+				51B7A01B2C00000100A1B2C3 /* Sparkle */,
+			);
 			name = StorageScanner;
 			productName = StorageScanner;
 			productReference = 4180AEAA2839753E0054FEA9 /* StorageScanner.app */;
@@ -340,6 +373,9 @@
 			productRefGroup = 4180AEAB2839753E0054FEA9 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			targets = (
 				4180AEA92839753E0054FEA9 /* StorageScanner */,
 			);
@@ -403,6 +439,8 @@
 				51B7A00F2C00000100A1B2C3 /* ScanWorkspaceView.swift in Sources */,
 				51B7A0112C00000100A1B2C3 /* ScanHeaderViews.swift in Sources */,
 				51B7A0132C00000100A1B2C3 /* ScanPresentationModifier.swift in Sources */,
+				51B7A0152C00000100A1B2C3 /* SparkleUpdateController.swift in Sources */,
+				51B7A0172C00000100A1B2C3 /* UpdateCommands.swift in Sources */,
 				4180AED428397F790054FEA9 /* SidebarPane.swift in Sources */,
 				4180AECC28397C6F0054FEA9 /* HelloWorldPane.swift in Sources */,
 			);
@@ -544,6 +582,8 @@
 				INFOPLIST_KEY_CFBundleName = StorageScanner;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUFeedURL = "";
+				INFOPLIST_KEY_SUPublicEDKey = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -577,6 +617,8 @@
 				INFOPLIST_KEY_CFBundleName = StorageScanner;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUFeedURL = "";
+				INFOPLIST_KEY_SUPublicEDKey = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
