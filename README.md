@@ -55,7 +55,7 @@ The script reads signing and update credentials from `release.env` when present.
 
 The release workflow lives at `.github/workflows/release.yml`.
 
-Run it manually from GitHub Actions with `publish` to create a GitHub Release or `upload` to push assets to an existing release.
+It can run automatically when a GitHub Release is published, or manually from GitHub Actions with `publish` to create a GitHub Release or `upload` to push assets to an existing release.
 
 It expects these secrets in GitHub:
 

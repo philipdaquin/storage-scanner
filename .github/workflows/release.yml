@@ -1,6 +1,8 @@
 name: Release StorageScanner
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       mode:
@@ -21,7 +23,7 @@ jobs:
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_MODE: ${{ inputs.mode }}
+      RELEASE_MODE: ${{ github.event_name == 'release' && 'upload' || inputs.mode }}
       APPCAST_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/appcast.xml
       DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
       NOTARYTOOL_PROFILE: ${{ secrets.NOTARYTOOL_PROFILE }}
