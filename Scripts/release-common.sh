@@ -108,27 +108,6 @@ storage_scanner_release_package_cache_dir() {
   printf '%s/PackageCache' "$(storage_scanner_release_root "$root")"
 }
 
-storage_scanner_cached_sourcepackages_dir() {
-  local candidate
-
-  if [[ -d /private/tmp/storage-scanner-deriveddata/SourcePackages/checkouts/Sparkle ]]; then
-    printf '%s\n' /private/tmp/storage-scanner-deriveddata/SourcePackages
-    return 0
-  fi
-
-  shopt -s nullglob
-  for candidate in "$HOME/Library/Developer/Xcode/DerivedData"/*/SourcePackages; do
-    if [[ -d "$candidate/checkouts/Sparkle" ]]; then
-      printf '%s\n' "$candidate"
-      shopt -u nullglob
-      return 0
-    fi
-  done
-  shopt -u nullglob
-
-  return 1
-}
-
 storage_scanner_release_app_path() {
   local root="$1"
   printf '%s/Build/Products/Release/StorageScanner.app' "$(storage_scanner_release_derived_data_dir "$root")"

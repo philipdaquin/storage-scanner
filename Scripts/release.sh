@@ -32,12 +32,6 @@ DOWNLOAD_URL_PREFIX=$(storage_scanner_release_download_url_prefix "$ROOT" "$MODE
 APPCAST_FEED_URL=$(storage_scanner_appcast_feed_url "$ROOT")
 SPARKLE_KEY_FILE=""
 
-if [[ -z "${RELEASE_SOURCEPACKAGES_DIR:-}" ]]; then
-  if SOURCEPACKAGES_DIR=$(storage_scanner_cached_sourcepackages_dir); then
-    :
-  fi
-fi
-
 SPARKLE_CHECKOUT="$SOURCEPACKAGES_DIR/checkouts/Sparkle"
 
 mkdir -p "$ARTIFACTS_DIR" "$SOURCEPACKAGES_DIR" "$PACKAGE_CACHE_DIR" "$HOME_DIR" "$CACHE_DIR"
