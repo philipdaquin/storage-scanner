@@ -155,6 +155,8 @@ notarize_dmg() {
   fi
 
   local notary_args_output
+  local notary_submit_output
+  local notary_submission_id notary_status
   local -a args=()
 
   if ! notary_args_output=$(storage_scanner_notarytool_args); then
@@ -167,7 +169,16 @@ notarize_dmg() {
     args+=("$line")
   done <<<"$notary_args_output"
 
-  xcrun notarytool submit "$DMG_PATH" "${args[@]}" --wait
+  notary_submit_output=$(xcrun notarytool submit "$DMG_PATH" "${args[@]}" --wait --output-format json)
+  notary_submission_id=$(ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data.fetch("id")' <<<"$notary_submit_output")
+  notary_status=$(ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data.fetch("status")' <<<"$notary_submit_output")
+
+  if [[ "$notary_status" != "Accepted" ]]; then
+    echo "ERROR: Notarization for $DMG_PATH finished with status $notary_status (submission $notary_submission_id)." >&2
+    xcrun notarytool log "$notary_submission_id" "${args[@]}"
+    return 1
+  fi
+
   xcrun stapler staple "$DMG_PATH"
   spctl -a -t open -vv "$DMG_PATH"
 }

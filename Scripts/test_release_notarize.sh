@@ -23,6 +23,11 @@ cat >"$MOCK_BIN/xcrun" <<'EOF'
 set -euo pipefail
 
 printf '%s\n' "$*" >>"${XCRUN_LOG:?}"
+if [[ "${1:-}" == "notarytool" && "${2:-}" == "submit" ]]; then
+  cat <<'JSON'
+{"id":"TEST-SUBMISSION-ID","status":"Accepted"}
+JSON
+fi
 exit 0
 EOF
 chmod +x "$MOCK_BIN/xcrun"
