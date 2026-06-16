@@ -42,6 +42,17 @@ jobs:
           set -euo pipefail
           swift --version
 
+      - name: Test release helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Scripts/test_release_common.sh
+          bash Scripts/test_release_signing.sh
+          bash Scripts/test_release_notarize.sh
+          bash Scripts/test_release_publish.sh
+          bash Scripts/test_release_upload.sh
+          bash Scripts/test_release_doctor.sh
+
       - name: Build StorageScanner release smoke
         shell: bash
         run: |

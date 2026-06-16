@@ -51,6 +51,14 @@ Scripts/release.sh publish
 
 The script reads signing and update credentials from `release.env` when present. A sample file is available at `release.env.example`.
 
+Before publishing, run the release doctor:
+
+```bash
+Scripts/release-doctor.sh --github
+```
+
+The doctor checks local release tools, local signing/update environment values, and required GitHub Actions secret names without printing secret values. A publish run is not ready until this command reports that the StorageScanner release inputs look ready.
+
 ## GitHub Actions
 
 The release workflow lives at `.github/workflows/release.yml`.
@@ -65,6 +73,16 @@ It expects these secrets in GitHub:
 - `NOTARYTOOL_PROFILE` or `NOTARYTOOL_API_KEY_P8`, `NOTARYTOOL_API_KEY_ID`, `NOTARYTOOL_API_ISSUER_ID`
 - `SPARKLE_PRIVATE_KEY` or the legacy `SPARKLE_PRIVATE_KEY_FILE` secret containing the private key text
 - `SPARKLE_PUBLIC_ED_KEY`
+
+To create the certificate secrets, export your Developer ID Application certificate from Keychain Access as a password-protected `.p12`, then run:
+
+```bash
+base64 -i /path/to/DeveloperIDApplication.p12 | pbcopy
+gh secret set DEVELOPER_ID_CERTIFICATE_P12_BASE64 --repo philipdaquin/storage-scanner
+gh secret set DEVELOPER_ID_CERTIFICATE_PASSWORD --repo philipdaquin/storage-scanner
+```
+
+Paste the base64 output for `DEVELOPER_ID_CERTIFICATE_P12_BASE64`, and paste the `.p12` export password for `DEVELOPER_ID_CERTIFICATE_PASSWORD`.
 
 After a successful publish or upload, the workflow uploads the DMG and ZIP, then commits the updated `appcast.xml` back to the default branch.
 
