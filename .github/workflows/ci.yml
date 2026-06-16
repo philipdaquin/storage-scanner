@@ -18,6 +18,8 @@ jobs:
   build-storage-scanner:
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      RELEASE_BASE_DIR: ${{ runner.temp }}/storage-scanner-release
     steps:
       - uses: actions/checkout@v6
 
@@ -47,3 +49,10 @@ jobs:
           RELEASE_SKIP_SIGNING=1 \
           RELEASE_SKIP_NOTARIZATION=1 \
           ./Scripts/release.sh local
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: storage-scanner-release
+          path: ${{ runner.temp }}/storage-scanner-release/artifacts/*
+          if-no-files-found: error
