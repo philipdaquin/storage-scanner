@@ -28,15 +28,6 @@ exit 0
 EOF
 chmod +x "$MOCK_BIN/codesign"
 
-cat >"$MOCK_BIN/spctl" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-printf '%s\n' "$*" >>"${SPCTL_LOG:?}"
-exit 0
-EOF
-chmod +x "$MOCK_BIN/spctl"
-
 export PATH="$MOCK_BIN:$PATH"
 
 sign_release_app
@@ -44,6 +35,5 @@ sign_release_app
 grep -Fq -- "--force --timestamp --options runtime --sign Developer ID Application: Test User (TEAMID) $APP_PATH/Contents/Frameworks/Foo.framework" "$CODESIGN_LOG"
 grep -Fq -- "--force --timestamp --options runtime --entitlements $ROOT/StorageScanner/SidebarApp.entitlements --sign Developer ID Application: Test User (TEAMID) $APP_PATH" "$CODESIGN_LOG"
 grep -Fq -- "--verify --deep --strict --verbose=2 $APP_PATH" "$CODESIGN_LOG"
-grep -Fq -- "-a -t exec -vv $APP_PATH" "$SPCTL_LOG"
 
 echo "Release signing flow tests passed."

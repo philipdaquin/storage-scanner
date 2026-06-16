@@ -132,7 +132,6 @@ sign_release_app() {
     "$APP_PATH"
 
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-  spctl -a -t exec -vv "$APP_PATH"
 }
 
 package_dmg() {
@@ -170,6 +169,7 @@ notarize_dmg() {
 
   xcrun notarytool submit "$DMG_PATH" "${args[@]}" --wait
   xcrun stapler staple "$DMG_PATH"
+  spctl -a -t open -vv "$DMG_PATH"
 }
 
 build_sparkle_tool() {
