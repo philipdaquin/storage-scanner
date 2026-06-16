@@ -107,7 +107,7 @@ export FAKE_APPCAST_INPUT_LOG="$TEMP_DIR/input.log"
 assert_contains() {
   local needle="$1"
   local file="$2"
-  if ! grep -Fq "$needle" "$file"; then
+  if ! grep -Fq -- "$needle" "$file"; then
     echo "ERROR: expected '$needle' in $file" >&2
     echo "--- $file ---" >&2
     sed -n '1,40p' "$file" >&2 || true
@@ -121,12 +121,14 @@ sign_release_app() { :; }
 package_dmg() { :; }
 notarize_dmg() { :; }
 create_zip() { :; }
+prepare_release_notes() { printf '# StorageScanner %s\n' "$MARKETING_VERSION" >"$RELEASE_NOTES_PATH"; }
 build_sparkle_tool() { printf '%s\n' "$TEMP_DIR/fake-generate-appcast"; }
 
 publish_release
 cp "$APPCAST_PATH" "$ROOT/appcast.xml"
 
 assert_contains "release create v1.2.3" "$GH_LOG"
+assert_contains "--notes-file $RELEASE_NOTES_PATH" "$GH_LOG"
 assert_contains "$DMG_PATH" "$GH_LOG"
 assert_contains "$ZIP_PATH" "$GH_LOG"
 assert_contains "https://github.com/example/storage-scanner/releases/download/v1.2.3/" "$FAKE_APPCAST_PREFIX_LOG"

@@ -27,6 +27,7 @@ APP_PATH="${RELEASE_APP_PATH:-$DERIVED_DATA_DIR/Build/Products/Release/StorageSc
 DMG_PATH="${RELEASE_DMG_PATH:-$ARTIFACTS_DIR/StorageScanner-$(storage_scanner_arch_label "${RELEASE_ARCHS:-arm64 x86_64}")-$(storage_scanner_release_version).dmg}"
 ZIP_PATH="${RELEASE_ZIP_PATH:-$ARTIFACTS_DIR/StorageScanner-$(storage_scanner_arch_label "${RELEASE_ARCHS:-arm64 x86_64}")-$(storage_scanner_release_version).zip}"
 APPCAST_PATH="${RELEASE_APPCAST_PATH:-$ARTIFACTS_DIR/appcast.xml}"
+RELEASE_NOTES_PATH="${RELEASE_NOTES_PATH:-$ARTIFACTS_DIR/release-notes.md}"
 DOWNLOAD_URL_PREFIX=$(storage_scanner_release_download_url_prefix "$ROOT" "$MODE")
 APPCAST_FEED_URL=$(storage_scanner_appcast_feed_url "$ROOT")
 SPARKLE_KEY_FILE=""
@@ -57,6 +58,7 @@ Environment:
   NOTARYTOOL_API_ISSUER_ID=YYYY-YYYY-YYYY-YYYY
   RELEASE_SKIP_SIGNING=1
   RELEASE_SKIP_NOTARIZATION=1
+  RELEASE_NOTES_FILE=/path/to/release-notes.md
 EOF
 }
 
@@ -283,6 +285,28 @@ create_zip() {
   ditto --norsrc -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 }
 
+prepare_release_notes() {
+  local source_file="${RELEASE_NOTES_FILE:-}"
+
+  if [[ -n "$source_file" ]]; then
+    if [[ ! -f "$source_file" ]]; then
+      echo "ERROR: RELEASE_NOTES_FILE does not exist: $source_file" >&2
+      return 1
+    fi
+
+    if [[ "$source_file" != "$RELEASE_NOTES_PATH" ]]; then
+      cp "$source_file" "$RELEASE_NOTES_PATH"
+    fi
+    return 0
+  fi
+
+  if [[ -f "$RELEASE_NOTES_PATH" ]]; then
+    return 0
+  fi
+
+  "$SCRIPT_DIR/release-notes.sh" "$MARKETING_VERSION" "$RELEASE_NOTES_PATH"
+}
+
 generate_appcast() {
   local tool prefix appcast_dir key_args=()
 
@@ -308,6 +332,35 @@ generate_appcast() {
   fi
 }
 
+annotate_appcast_release_notes() {
+  local release_notes_url
+
+  release_notes_url="https://github.com/$(storage_scanner_repo_slug)/releases/tag/$(storage_scanner_release_tag)"
+
+  python3 - "$APPCAST_PATH" "$release_notes_url" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+url = sys.argv[2]
+text = path.read_text()
+
+if 'sparkle:releaseNotesLink' in text:
+    raise SystemExit(0)
+
+updated, count = re.subn(
+    r'(<enclosure\b[^>]*/>)',
+    r'\1\n    <sparkle:releaseNotesLink>' + url + r'</sparkle:releaseNotesLink>',
+    text,
+    count=1,
+)
+
+if count:
+    path.write_text(updated)
+PY
+}
+
 publish_release() {
   local tag repo
 
@@ -319,10 +372,12 @@ publish_release() {
     return 1
   fi
 
+  prepare_release_notes
+
   gh release create "$tag" "$DMG_PATH" "$ZIP_PATH" \
     --repo "$repo" \
     --title "StorageScanner ${MARKETING_VERSION}" \
-    --generate-notes
+    --notes-file "$RELEASE_NOTES_PATH"
 
   generate_appcast
 }
@@ -355,11 +410,14 @@ main() {
       package_dmg
       notarize_dmg
       create_zip
+      prepare_release_notes
       generate_appcast
+      annotate_appcast_release_notes
       printf 'Local release complete.\n'
       printf 'App: %s\n' "$APP_PATH"
       printf 'DMG: %s\n' "$DMG_PATH"
       printf 'ZIP: %s\n' "$ZIP_PATH"
+      printf 'Notes: %s\n' "$RELEASE_NOTES_PATH"
       printf 'Appcast: %s\n' "$APPCAST_PATH"
       ;;
     publish)
@@ -369,7 +427,9 @@ main() {
       package_dmg
       notarize_dmg
       create_zip
+      prepare_release_notes
       generate_appcast
+      annotate_appcast_release_notes
       publish_release
       cp "$APPCAST_PATH" "$ROOT/appcast.xml"
       printf 'Publish complete.\n'
@@ -383,7 +443,9 @@ main() {
       package_dmg
       notarize_dmg
       create_zip
+      prepare_release_notes
       generate_appcast
+      annotate_appcast_release_notes
       upload_release
       cp "$APPCAST_PATH" "$ROOT/appcast.xml"
       printf 'Upload complete.\n'
@@ -392,6 +454,7 @@ main() {
       ;;
     appcast)
       generate_appcast
+      annotate_appcast_release_notes
       printf 'Appcast regenerated at %s\n' "$APPCAST_PATH"
       ;;
     *)

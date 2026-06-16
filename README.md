@@ -51,6 +51,10 @@ Scripts/release.sh publish
 
 The script reads signing and update credentials from `release.env` when present. A sample file is available at `release.env.example`.
 
+Release notes are drafted from commit subjects with `Scripts/release-notes.sh`. The generated markdown is written into the release workspace so you can trim or rewrite it before publishing, and `gh release create` uses that draft as the GitHub Release body.
+
+The checked-in [CHANGELOG.md](/Users/philipdaquin/Documents/storage-scanner/CHANGELOG.md) stays as the user-facing history for the release line, while the Sparkle appcast keeps pointing at the downloadable update assets and links back to the GitHub Release notes.
+
 Before publishing, run the release doctor:
 
 ```bash

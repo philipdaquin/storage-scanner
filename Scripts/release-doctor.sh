@@ -67,6 +67,7 @@ check_local_inputs() {
 
   check_file "$ROOT/StorageScanner.xcodeproj" "Xcode project" || status=1
   check_file "$ROOT/version.env" "version file" || status=1
+  check_file "$ROOT/CHANGELOG.md" "changelog" || status=1
   check_file "$ROOT/StorageScanner/SidebarApp.entitlements" "release entitlements" || status=1
   check_command xcodebuild || status=1
   check_command hdiutil || status=1

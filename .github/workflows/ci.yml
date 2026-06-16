@@ -47,6 +47,8 @@ jobs:
         run: |
           set -euo pipefail
           bash Scripts/test_release_common.sh
+          bash Scripts/test_release_notes.sh
+          bash Scripts/test_release_appcast_notes.sh
           bash Scripts/test_release_signing.sh
           bash Scripts/test_release_notarize.sh
           bash Scripts/test_release_publish.sh
