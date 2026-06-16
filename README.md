@@ -2,7 +2,7 @@
 
 StorageScanner is a SwiftUI macOS app for understanding disk usage with a UI inspired by `ncdu`.
 
-It can scan the system root or a chosen folder, build a navigable size tree, and let you explore the results in both list and treemap views without re-scanning the filesystem every time you change the UI.
+It scans a Mac filesystem once, builds a navigable size tree, and lets you explore the results in a list or treemap view without re-scanning every time you switch views.
 
 ## What It Does
 
@@ -11,9 +11,8 @@ It can scan the system root or a chosen folder, build a navigable size tree, and
 - Lets you navigate with breadcrumbs and drill into folders.
 - Switches between a detailed list view and a treemap map view.
 - Shows scan progress while the scan is running.
-- Filters the current tree by categories like Applications, Documents, Downloads, and Media.
-- Selects items and moves them to Trash from inside the app.
-- Rescans the current target when you want fresh data.
+- Scans the system root or a chosen folder from the `Scan Disk` action.
+- Lets you select items and move them to Trash from inside the app.
 
 ## How It Works
 
@@ -33,11 +32,43 @@ On macOS, root scans need special handling because the sealed system volume and 
 3. Build and run.
 4. Click `Scan Disk` to inspect the full system, or `Scan Folder` to choose a directory.
 
+## Release Pipeline
+
+The repository includes a local-first macOS release script at `Scripts/release.sh`.
+
+Use it like this:
+
+```bash
+Scripts/release.sh local
+Scripts/release.sh publish
+```
+
+`local` builds the signed app bundle, creates the DMG, creates the Sparkle ZIP, and generates `appcast.xml` in a release workspace.
+
+`publish` performs the same local release work, notarizes and staples the DMG, creates a GitHub Release, uploads the DMG and ZIP, and refreshes the appcast download URLs for the published assets.
+
+`upload` is the GitHub Actions-friendly mode. It does the same build/sign/notarize/package work, uploads the DMG and ZIP to an existing release, and refreshes `appcast.xml` for the GitHub-hosted download URLs.
+
+The script reads signing and update credentials from `release.env` when present. A sample file is available at `release.env.example`.
+
+## GitHub Actions
+
+The release workflow lives at `.github/workflows/release.yml`.
+
+It expects these secrets in GitHub:
+
+- `DEVELOPER_ID_IDENTITY`
+- `NOTARYTOOL_PROFILE` or `NOTARYTOOL_API_KEY_P8`, `NOTARYTOOL_API_KEY_ID`, `NOTARYTOOL_API_ISSUER_ID`
+- `SPARKLE_PRIVATE_KEY`
+- `SPARKLE_PUBLIC_ED_KEY`
+
+When a release is published, the workflow uploads the DMG and ZIP to that release and commits the updated `appcast.xml` back to the default branch.
+
 ## Notes
 
 - Scanning protected system locations may require macOS permissions.
 - Large filesystems can still take time to scan, but the app avoids unnecessary reprocessing after the scan completes.
-- The project is a local macOS app, not a packaged release.
+- The release flow is designed to support a signed Developer ID `.app`, a direct-download DMG, a Sparkle ZIP, and a GitHub release feed.
 
 ## License
 

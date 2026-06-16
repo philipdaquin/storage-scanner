@@ -1,0 +1,6 @@
+.release/
+release.env
+
+.mac-release.env
+
+*.p8

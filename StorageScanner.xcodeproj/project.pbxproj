@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -53,9 +53,12 @@
 		51B7A0132C00000100A1B2C3 /* ScanPresentationModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0122C00000100A1B2C3 /* ScanPresentationModifier.swift */; };
 		51B7A0152C00000100A1B2C3 /* SparkleUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0142C00000100A1B2C3 /* SparkleUpdateController.swift */; };
 		51B7A0172C00000100A1B2C3 /* UpdateCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B7A0162C00000100A1B2C3 /* UpdateCommands.swift */; };
+		51B7A0192C00000100A1B2C3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 51B7A01B2C00000100A1B2C3 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		20F870812FE034630091702A /* version.env */ = {isa = PBXFileReference; lastKnownFileType = text; path = version.env; sourceTree = "<group>"; };
+		20F870A92FE039F40091702A /* .mac-release.env */ = {isa = PBXFileReference; lastKnownFileType = text; path = ".mac-release.env"; sourceTree = "<group>"; };
 		4180AEAA2839753E0054FEA9 /* StorageScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StorageScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4180AEAD2839753E0054FEA9 /* SidebarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarApp.swift; sourceTree = "<group>"; };
 		4180AEB12839753F0054FEA9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -106,44 +109,28 @@
 		51B7A0162C00000100A1B2C3 /* UpdateCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCommands.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		20F8707C2FE033E90091702A /* Scripts */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Scripts; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		4180AEA72839753E0054FEA9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				51B7A0192C00000100A1B2C3 /* Sparkle.framework in Frameworks */,
+				51B7A0192C00000100A1B2C3 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
-/* Begin PBXBuildFile section (package products) */
-		51B7A0192C00000100A1B2C3 /* Sparkle.framework in Frameworks */ = {isa = PBXBuildFile; productRef = 51B7A01B2C00000100A1B2C3 /* Sparkle */; };
-/* End PBXBuildFile section (package products) */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		51B7A01B2C00000100A1B2C3 /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin PBXGroup section */
 		4180AEA12839753E0054FEA9 = {
 			isa = PBXGroup;
 			children = (
+				20F870A92FE039F40091702A /* .mac-release.env */,
+				20F870812FE034630091702A /* version.env */,
+				20F8707C2FE033E90091702A /* Scripts */,
 				4180AEAC2839753E0054FEA9 /* StorageScanner */,
 				4180AEAB2839753E0054FEA9 /* Products */,
 			);
@@ -338,10 +325,10 @@
 			);
 			dependencies = (
 			);
+			name = StorageScanner;
 			packageProductDependencies = (
 				51B7A01B2C00000100A1B2C3 /* Sparkle */,
 			);
-			name = StorageScanner;
 			productName = StorageScanner;
 			productReference = 4180AEAA2839753E0054FEA9 /* StorageScanner.app */;
 			productType = "com.apple.product-type.application";
@@ -370,12 +357,12 @@
 				Base,
 			);
 			mainGroup = 4180AEA12839753E0054FEA9;
-			productRefGroup = 4180AEAB2839753E0054FEA9 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
 			packageReferences = (
 				51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
+			productRefGroup = 4180AEAB2839753E0054FEA9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
 			targets = (
 				4180AEA92839753E0054FEA9 /* StorageScanner */,
 			);
@@ -582,6 +569,7 @@
 				INFOPLIST_KEY_CFBundleName = StorageScanner;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
 				INFOPLIST_KEY_SUFeedURL = "";
 				INFOPLIST_KEY_SUPublicEDKey = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -617,6 +605,7 @@
 				INFOPLIST_KEY_CFBundleName = StorageScanner;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
 				INFOPLIST_KEY_SUFeedURL = "";
 				INFOPLIST_KEY_SUPublicEDKey = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -654,6 +643,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		51B7A01B2C00000100A1B2C3 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 51B7A01A2C00000100A1B2C3 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4180AEA22839753E0054FEA9 /* Project object */;
 }

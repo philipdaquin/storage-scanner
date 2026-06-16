@@ -1,0 +1,121 @@
+name: Release StorageScanner
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Release mode to run"
+        required: true
+        default: upload
+        type: choice
+        options:
+          - upload
+          - publish
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_MODE: ${{ github.event_name == 'release' && 'upload' || inputs.mode }}
+      APPCAST_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/appcast.xml
+      DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+      NOTARYTOOL_PROFILE: ${{ secrets.NOTARYTOOL_PROFILE }}
+      NOTARYTOOL_API_KEY_ID: ${{ secrets.NOTARYTOOL_API_KEY_ID }}
+      NOTARYTOOL_API_ISSUER_ID: ${{ secrets.NOTARYTOOL_API_ISSUER_ID }}
+      NOTARYTOOL_API_KEY_P8: ${{ secrets.NOTARYTOOL_API_KEY_P8 }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
+      RELEASE_BASE_DIR: ${{ runner.temp }}/storage-scanner-release
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Select Xcode 26.1.1 (if present) or fallback to default
+        shell: bash
+        run: |
+          set -euo pipefail
+          for candidate in /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app /Applications/Xcode.app; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "${candidate}/Contents/Developer"
+              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          /usr/bin/xcodebuild -version
+
+      - name: Runner info
+        shell: bash
+        run: |
+          set -euo pipefail
+          uname -a
+          uname -m
+          swift --version
+
+      - name: Materialize notarization key
+        if: env.NOTARYTOOL_PROFILE == ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${NOTARYTOOL_API_KEY_P8:-}" ]]; then
+            echo "ERROR: Set NOTARYTOOL_PROFILE or NOTARYTOOL_API_KEY_P8 in GitHub secrets." >&2
+            exit 1
+          fi
+
+          if [[ -z "${NOTARYTOOL_API_KEY_ID:-}" || -z "${NOTARYTOOL_API_ISSUER_ID:-}" ]]; then
+            echo "ERROR: Set NOTARYTOOL_API_KEY_ID and NOTARYTOOL_API_ISSUER_ID when using NOTARYTOOL_API_KEY_P8." >&2
+            exit 1
+          fi
+
+          key_file="$RUNNER_TEMP/AuthKey.p8"
+          umask 077
+          printf '%s' "$NOTARYTOOL_API_KEY_P8" > "$key_file"
+          echo "NOTARYTOOL_API_KEY_FILE=$key_file" >> "$GITHUB_ENV"
+
+      - name: Verify release secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for var in DEVELOPER_ID_IDENTITY SPARKLE_PUBLIC_ED_KEY; do
+            if [[ -z "${!var:-}" ]]; then
+              echo "ERROR: Missing $var secret." >&2
+              missing=1
+            fi
+          done
+          if [[ -z "${NOTARYTOOL_PROFILE:-}" && -z "${NOTARYTOOL_API_KEY_FILE:-}" ]]; then
+            echo "ERROR: Missing notarization secrets. Set NOTARYTOOL_PROFILE or NOTARYTOOL_API_KEY_P8/ID/ISSUER_ID." >&2
+            missing=1
+          fi
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/release.sh "$RELEASE_MODE"
+
+      - name: Commit appcast update
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- appcast.xml; then
+            echo "No appcast changes to commit."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add appcast.xml
+          git commit -m "Update appcast [skip ci]"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
