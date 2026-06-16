@@ -11,7 +11,6 @@ export RELEASE_SKIP_NOTARIZATION=0
 export DMG_PATH="$TEMP_DIR/StorageScanner.dmg"
 export NOTARYTOOL_PROFILE="StorageScanner Notary"
 export XCRUN_LOG="$TEMP_DIR/xcrun.log"
-export SPCTL_LOG="$TEMP_DIR/spctl.log"
 
 touch "$DMG_PATH"
 
@@ -32,21 +31,12 @@ exit 0
 EOF
 chmod +x "$MOCK_BIN/xcrun"
 
-cat >"$MOCK_BIN/spctl" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-printf '%s\n' "$*" >>"${SPCTL_LOG:?}"
-exit 0
-EOF
-chmod +x "$MOCK_BIN/spctl"
-
 export PATH="$MOCK_BIN:$PATH"
 
 notarize_dmg
 
 grep -Fq "notarytool submit $DMG_PATH --keychain-profile StorageScanner Notary --wait" "$XCRUN_LOG"
 grep -Fq "stapler staple $DMG_PATH" "$XCRUN_LOG"
-grep -Fq -- "-a -t open --context context:primary-signature -vv $DMG_PATH" "$SPCTL_LOG"
+grep -Fq "stapler validate $DMG_PATH" "$XCRUN_LOG"
 
 echo "Release notarization flow tests passed."
