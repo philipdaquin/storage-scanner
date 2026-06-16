@@ -30,8 +30,10 @@ jobs:
       NOTARYTOOL_API_KEY_ID: ${{ secrets.NOTARYTOOL_API_KEY_ID }}
       NOTARYTOOL_API_ISSUER_ID: ${{ secrets.NOTARYTOOL_API_ISSUER_ID }}
       NOTARYTOOL_API_KEY_P8: ${{ secrets.NOTARYTOOL_API_KEY_P8 }}
-      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY || secrets.SPARKLE_PRIVATE_KEY_FILE }}
       SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
+      DEVELOPER_ID_CERTIFICATE_P12_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12_BASE64 }}
+      DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -84,12 +86,46 @@ jobs:
           printf '%s' "$NOTARYTOOL_API_KEY_P8" > "$key_file"
           echo "NOTARYTOOL_API_KEY_FILE=$key_file" >> "$GITHUB_ENV"
 
+      - name: Import Developer ID certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DEVELOPER_ID_CERTIFICATE_P12_BASE64:-}" ]]; then
+            echo "ERROR: Missing DEVELOPER_ID_CERTIFICATE_P12_BASE64 secret." >&2
+            exit 1
+          fi
+
+          if [[ -z "${DEVELOPER_ID_CERTIFICATE_PASSWORD:-}" ]]; then
+            echo "ERROR: Missing DEVELOPER_ID_CERTIFICATE_PASSWORD secret." >&2
+            exit 1
+          fi
+
+          cert_path="$RUNNER_TEMP/developer-id.p12"
+          keychain_path="$RUNNER_TEMP/storage-scanner-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+
+          printf '%s' "$DEVELOPER_ID_CERTIFICATE_P12_BASE64" | base64 --decode > "$cert_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$cert_path" \
+            -k "$keychain_path" \
+            -P "$DEVELOPER_ID_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security \
+            -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | sed 's/[ "]//g')
+          security default-keychain -d user -s "$keychain_path"
+          security find-identity -p codesigning -v "$keychain_path"
+
       - name: Verify release secrets
         shell: bash
         run: |
           set -euo pipefail
           missing=0
-          for var in DEVELOPER_ID_IDENTITY SPARKLE_PUBLIC_ED_KEY; do
+          for var in DEVELOPER_ID_IDENTITY SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_ED_KEY; do
             if [[ -z "${!var:-}" ]]; then
               echo "ERROR: Missing $var secret." >&2
               missing=1

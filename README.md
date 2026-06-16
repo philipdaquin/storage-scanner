@@ -60,8 +60,10 @@ It can run automatically when a GitHub Release is published, or manually from Gi
 It expects these secrets in GitHub:
 
 - `DEVELOPER_ID_IDENTITY`
+- `DEVELOPER_ID_CERTIFICATE_P12_BASE64`
+- `DEVELOPER_ID_CERTIFICATE_PASSWORD`
 - `NOTARYTOOL_PROFILE` or `NOTARYTOOL_API_KEY_P8`, `NOTARYTOOL_API_KEY_ID`, `NOTARYTOOL_API_ISSUER_ID`
-- `SPARKLE_PRIVATE_KEY`
+- `SPARKLE_PRIVATE_KEY` or the legacy `SPARKLE_PRIVATE_KEY_FILE` secret containing the private key text
 - `SPARKLE_PUBLIC_ED_KEY`
 
 After a successful publish or upload, the workflow uploads the DMG and ZIP, then commits the updated `appcast.xml` back to the default branch.

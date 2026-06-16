@@ -6,12 +6,13 @@ storage_scanner_repo_root() {
 
 storage_scanner_load_env() {
   local root="$1"
+  local release_env_file="${RELEASE_ENV_FILE:-$root/release.env}"
 
   source "$root/version.env"
 
-  if [[ -f "$root/release.env" ]]; then
+  if [[ -f "$release_env_file" ]]; then
     set -a
-    source "$root/release.env"
+    source "$release_env_file"
     set +a
   fi
 }
@@ -219,6 +220,10 @@ storage_scanner_sparkle_key_file() {
   local root="$1"
 
   if [[ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ]]; then
+    if [[ ! -f "$SPARKLE_PRIVATE_KEY_FILE" ]]; then
+      echo "ERROR: SPARKLE_PRIVATE_KEY_FILE does not point to an existing file." >&2
+      return 1
+    fi
     printf '%s\n' "$SPARKLE_PRIVATE_KEY_FILE"
     return 0
   fi
