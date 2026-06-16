@@ -123,6 +123,8 @@ sign_release_app() {
       "$framework"
   done < <(find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type d -name '*.framework' | sort)
 
+  sign_sparkle_framework
+
   codesign \
     --force \
     --timestamp \
@@ -132,6 +134,95 @@ sign_release_app() {
     "$APP_PATH"
 
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+}
+
+resolve_sparkle_version_dir() {
+  local sparkle="$1"
+  local versions_dir="$sparkle/Versions"
+  local version_dirs=()
+  local candidate
+
+  if [[ -L "$sparkle" ]]; then
+    echo "ERROR: Sparkle framework root must not be a symlink: $sparkle" >&2
+    return 1
+  fi
+
+  if [[ -L "$versions_dir" ]]; then
+    echo "ERROR: Sparkle versions directory must not be a symlink: $versions_dir" >&2
+    return 1
+  fi
+
+  if [[ ! -d "$versions_dir" ]]; then
+    echo "ERROR: Missing Sparkle versions directory: $versions_dir" >&2
+    return 1
+  fi
+
+  if [[ -e "$versions_dir/Current" || -L "$versions_dir/Current" ]]; then
+    if ! candidate=$(cd "$versions_dir/Current" 2>/dev/null && pwd -P); then
+      echo "ERROR: Sparkle Versions/Current does not resolve: $versions_dir/Current" >&2
+      return 1
+    fi
+    if [[ "$(dirname "$candidate")" != "$(cd "$versions_dir" && pwd -P)" ]]; then
+      echo "ERROR: Sparkle Versions/Current resolves outside the framework versions directory: $versions_dir/Current" >&2
+      return 1
+    fi
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  shopt -s nullglob
+  for candidate in "$versions_dir"/*; do
+    [[ -d "$candidate" ]] && version_dirs+=("$candidate")
+  done
+  shopt -u nullglob
+
+  case "${#version_dirs[@]}" in
+    1)
+      printf '%s\n' "$(cd "${version_dirs[0]}" && pwd -P)"
+      ;;
+    0)
+      echo "ERROR: Sparkle framework has no version directory under: $versions_dir" >&2
+      return 1
+      ;;
+    *)
+      echo "ERROR: Sparkle framework has multiple version directories and no Versions/Current symlink: $versions_dir" >&2
+      return 1
+      ;;
+  esac
+}
+
+sign_sparkle_target() {
+  local target="$1"
+
+  codesign \
+    --force \
+    --timestamp \
+    --options runtime \
+    --sign "$DEVELOPER_ID_IDENTITY" \
+    "$target"
+}
+
+sign_sparkle_framework() {
+  local sparkle="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+  local version_dir
+
+  if [[ ! -d "$sparkle" ]]; then
+    echo "ERROR: Missing Sparkle framework at $sparkle" >&2
+    return 1
+  fi
+
+  version_dir=$(resolve_sparkle_version_dir "$sparkle")
+
+  sign_sparkle_target "$version_dir/Sparkle"
+  sign_sparkle_target "$version_dir/Autoupdate"
+  sign_sparkle_target "$version_dir/Updater.app/Contents/MacOS/Updater"
+  sign_sparkle_target "$version_dir/Updater.app"
+  sign_sparkle_target "$version_dir/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+  sign_sparkle_target "$version_dir/XPCServices/Downloader.xpc"
+  sign_sparkle_target "$version_dir/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+  sign_sparkle_target "$version_dir/XPCServices/Installer.xpc"
+  sign_sparkle_target "$version_dir"
+  sign_sparkle_target "$sparkle"
 }
 
 package_dmg() {
