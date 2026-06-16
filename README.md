@@ -55,6 +55,8 @@ The script reads signing and update credentials from `release.env` when present.
 
 The release workflow lives at `.github/workflows/release.yml`.
 
+Run it manually from GitHub Actions with `publish` to create a GitHub Release or `upload` to push assets to an existing release.
+
 It expects these secrets in GitHub:
 
 - `DEVELOPER_ID_IDENTITY`
@@ -62,7 +64,9 @@ It expects these secrets in GitHub:
 - `SPARKLE_PRIVATE_KEY`
 - `SPARKLE_PUBLIC_ED_KEY`
 
-When a release is published, the workflow uploads the DMG and ZIP to that release and commits the updated `appcast.xml` back to the default branch.
+After a successful publish or upload, the workflow uploads the DMG and ZIP, then commits the updated `appcast.xml` back to the default branch.
+
+The CI workflow also uploads a downloadable artifact bundle so you can grab the DMG and ZIP directly from the successful Actions run.
 
 ## Notes
 
