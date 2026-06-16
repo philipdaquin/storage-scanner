@@ -47,6 +47,6 @@ notarize_dmg
 
 grep -Fq "notarytool submit $DMG_PATH --keychain-profile StorageScanner Notary --wait" "$XCRUN_LOG"
 grep -Fq "stapler staple $DMG_PATH" "$XCRUN_LOG"
-grep -Fq -- "-a -t open -vv $DMG_PATH" "$SPCTL_LOG"
+grep -Fq -- "-a -t open --context context:primary-signature -vv $DMG_PATH" "$SPCTL_LOG"
 
 echo "Release notarization flow tests passed."

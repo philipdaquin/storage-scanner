@@ -271,7 +271,7 @@ notarize_dmg() {
   fi
 
   xcrun stapler staple "$DMG_PATH"
-  spctl -a -t open -vv "$DMG_PATH"
+  spctl -a -t open --context context:primary-signature -vv "$DMG_PATH"
 }
 
 build_sparkle_tool() {
