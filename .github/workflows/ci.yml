@@ -22,6 +22,9 @@ jobs:
       RELEASE_BASE_DIR: ${{ github.workspace }}/.release-ci/storage-scanner-release
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Select Xcode 26.1.1 (if present) or fallback to default
         shell: bash
