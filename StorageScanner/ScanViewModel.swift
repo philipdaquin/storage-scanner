@@ -18,19 +18,26 @@ class ScanViewModel: ObservableObject {
     @Published var scanProgressText = ""
     @Published var scanFilesScanned = 0
     @Published var scanTotalSize: Int64 = 0
+    @Published var isPreparingCategoryView = false
     
     private let scanner = FileScanner()
     private var lastScanRequest: ScanRequest?
     private var treeVersion = 0
     private var treeIndex = ScanTreeIndex(root: nil)
-    private var displayedItemCacheKey = ""
-    private var displayedItemCache: FileItem?
     private var treemapItemsCacheKey = ""
     private var treemapItemsCache: [FileItem] = []
+    private var categoryDisplayTask: Task<Void, Never>?
+    private var categoryPrewarmTask: Task<Void, Never>?
+    private var categoryDisplayCache: [ScanCategory: CategoryDisplayCacheEntry] = [:]
 
     private enum ScanRequest {
         case single(URL)
         case group(name: String, urls: [URL])
+    }
+
+    private struct CategoryDisplayCacheEntry {
+        let treeVersion: Int
+        let item: FileItem
     }
     
     var selectedCount: Int {
@@ -55,25 +62,11 @@ class ScanViewModel: ObservableObject {
             return currentItem
         }
 
-        let key = "\(pathCacheKey())|\(selectedCategory.rawValue)"
-        if displayedItemCacheKey == key {
-            return displayedItemCache
+        guard let cache = categoryDisplayCache[selectedCategory],
+              cache.treeVersion == treeVersion else {
+            return nil
         }
-
-        let matches = treeIndex.matchingDescendants(of: currentItem.id) {
-            selectedCategory.matches($0)
-        }
-        let item = FileItem(
-            name: selectedCategory.rawValue,
-            path: currentItem.path,
-            size: matches.reduce(Int64(0)) { $0 + $1.size },
-            isDirectory: true,
-            children: matches,
-            isTrashable: false
-        )
-        displayedItemCacheKey = key
-        displayedItemCache = item
-        return item
+        return cache.item
     }
 
     var treemapItems: [FileItem] {
@@ -132,6 +125,7 @@ class ScanViewModel: ObservableObject {
         selectedCategory = category
         currentPath = []
         invalidateDerivedCaches()
+        refreshCategoryDisplayItemIfNeeded()
     }
 
     private func startScan(_ scanOperation: @escaping () async throws -> FileItem) {
@@ -146,6 +140,12 @@ class ScanViewModel: ObservableObject {
         selectedItems = []
         rootItem = nil
         treeIndex = ScanTreeIndex(root: nil)
+        categoryDisplayTask?.cancel()
+        categoryPrewarmTask?.cancel()
+        categoryDisplayTask = nil
+        categoryPrewarmTask = nil
+        categoryDisplayCache.removeAll()
+        isPreparingCategoryView = false
         invalidateDerivedCaches()
         
         Task {
@@ -163,10 +163,13 @@ class ScanViewModel: ObservableObject {
                     self.rootItem = result
                     self.treeIndex = ScanTreeIndex(root: result)
                     self.treeVersion += 1
+                    self.categoryDisplayCache.removeAll()
                     self.invalidateDerivedCaches()
                     self.isScanning = false
                     self.hasScanned = true
                     self.scanProgressText = "Scan complete"
+                    self.refreshCategoryDisplayItemIfNeeded()
+                    self.prewarmCategoryDisplayItems()
                 }
             } catch {
                 await MainActor.run {
@@ -305,6 +308,10 @@ class ScanViewModel: ObservableObject {
             self.treeIndex = ScanTreeIndex(root: nil)
             self.currentPath = []
             self.treeVersion += 1
+            self.categoryDisplayCache.removeAll()
+            self.categoryPrewarmTask?.cancel()
+            self.categoryPrewarmTask = nil
+            self.isPreparingCategoryView = false
             invalidateDerivedCaches()
             return
         }
@@ -312,8 +319,13 @@ class ScanViewModel: ObservableObject {
         self.rootItem = updatedRoot
         self.treeIndex = ScanTreeIndex(root: updatedRoot)
         self.treeVersion += 1
+        self.categoryDisplayCache.removeAll()
+        self.categoryPrewarmTask?.cancel()
+        self.categoryPrewarmTask = nil
         self.currentPath = trimmedCurrentPath()
         invalidateDerivedCaches()
+        refreshCategoryDisplayItemIfNeeded()
+        prewarmCategoryDisplayItems()
     }
 
     private func trimmedCurrentPath() -> [UUID] {
@@ -343,10 +355,115 @@ class ScanViewModel: ObservableObject {
     }
 
     private func invalidateDerivedCaches() {
-        displayedItemCacheKey = ""
-        displayedItemCache = nil
         treemapItemsCacheKey = ""
         treemapItemsCache = []
+    }
+
+    private func refreshCategoryDisplayItemIfNeeded() {
+        categoryDisplayTask?.cancel()
+        categoryDisplayTask = nil
+
+        guard let rootItem,
+              let selectedCategory,
+              selectedCategory != .all else {
+            isPreparingCategoryView = false
+            return
+        }
+
+        if let cache = categoryDisplayCache[selectedCategory], cache.treeVersion == treeVersion {
+            isPreparingCategoryView = false
+            return
+        }
+
+        isPreparingCategoryView = true
+        let rootSnapshot = rootItem
+        let category = selectedCategory
+        let version = treeVersion
+
+        categoryDisplayTask = Task.detached(priority: .userInitiated) { [rootSnapshot, category, version] in
+            let item = Self.buildCategoryDisplayItem(from: rootSnapshot, category: category)
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                guard self.treeVersion == version, self.selectedCategory == category else { return }
+                self.categoryDisplayCache[category] = CategoryDisplayCacheEntry(treeVersion: version, item: item)
+                self.isPreparingCategoryView = false
+                self.categoryDisplayTask = nil
+            }
+        }
+    }
+
+    private func prewarmCategoryDisplayItems() {
+        categoryPrewarmTask?.cancel()
+        categoryPrewarmTask = nil
+
+        guard let rootItem else { return }
+
+        let rootSnapshot = rootItem
+        let version = treeVersion
+        let categories = ScanCategory.allCases.filter { $0 != .all }
+
+        categoryPrewarmTask = Task.detached(priority: .utility) { [rootSnapshot, version, categories] in
+            var itemsByCategory: [ScanCategory: FileItem] = [:]
+
+            for category in categories {
+                guard !Task.isCancelled else { return }
+                itemsByCategory[category] = Self.buildCategoryDisplayItem(from: rootSnapshot, category: category)
+            }
+
+            guard !Task.isCancelled else { return }
+            let warmedItems = itemsByCategory
+
+            await MainActor.run {
+                guard self.treeVersion == version else { return }
+
+                for (category, item) in warmedItems {
+                    self.categoryDisplayCache[category] = CategoryDisplayCacheEntry(treeVersion: version, item: item)
+                }
+
+                if let selectedCategory = self.selectedCategory,
+                   selectedCategory != .all,
+                   self.categoryDisplayCache[selectedCategory]?.treeVersion == version {
+                    self.isPreparingCategoryView = false
+                }
+
+                self.categoryPrewarmTask = nil
+            }
+        }
+    }
+
+    private nonisolated static func buildCategoryDisplayItem(from rootItem: FileItem, category: ScanCategory) -> FileItem {
+        var matches: [FileItem] = []
+        var stack: [FileItem] = [rootItem]
+
+        while let current = stack.popLast() {
+            if current.id != rootItem.id, category.matches(current) {
+                matches.append(current)
+            }
+
+            if let children = current.children {
+                for child in children.reversed() {
+                    stack.append(child)
+                }
+            }
+        }
+
+        matches.sort {
+            if $0.size == $1.size {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.size > $1.size
+        }
+
+        let size = matches.reduce(Int64(0)) { $0 + $1.size }
+        return FileItem(
+            name: category.rawValue,
+            path: rootItem.path,
+            size: size,
+            isDirectory: true,
+            children: matches,
+            isTrashable: false
+        )
     }
 
     private func pathCacheKey() -> String {

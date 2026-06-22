@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScanCategory: String, CaseIterable, Identifiable {
+enum ScanCategory: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case apps = "Applications"
     case documents = "Documents"

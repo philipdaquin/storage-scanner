@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 
 /// File item representing a file or directory in the scan
-struct FileItem: Identifiable, Hashable {
+struct FileItem: Identifiable, Hashable, @unchecked Sendable {
     let id: UUID
     let name: String
     let path: URL
