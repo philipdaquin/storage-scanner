@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/release.sh"
+EXPECTED_RELEASE_TAG="$(storage_scanner_release_tag)"
+EXPECTED_MARKETING_VERSION="$MARKETING_VERSION"
 
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/storage-scanner-release-appcast-notes.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -13,12 +15,13 @@ cat >"$APPCAST_PATH" <<'XML'
 <rss>
   <channel>
     <item>
-      <title>StorageScanner 0.0.1</title>
+      <title>StorageScanner __MARKETING_VERSION__</title>
       <enclosure url="https://example.invalid/StorageScanner.dmg" length="123" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
 XML
+sed -i '' "s/__MARKETING_VERSION__/${EXPECTED_MARKETING_VERSION}/g" "$APPCAST_PATH"
 
 MOCK_BIN="$TEMP_DIR/bin"
 mkdir -p "$MOCK_BIN"
@@ -41,6 +44,6 @@ export PATH="$MOCK_BIN:$PATH"
 
 annotate_appcast_release_notes
 
-grep -Fq '<sparkle:releaseNotesLink>https://github.com/example/storage-scanner/releases/tag/v0.0.1</sparkle:releaseNotesLink>' "$APPCAST_PATH"
+grep -Fq "<sparkle:releaseNotesLink>https://github.com/example/storage-scanner/releases/tag/${EXPECTED_RELEASE_TAG}</sparkle:releaseNotesLink>" "$APPCAST_PATH"
 
 echo "Release appcast notes tests passed."
