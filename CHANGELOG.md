@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.2 — 2026-06-22
+
+### Added
+- Category tabs now prewarm from the completed scan tree so switching between views feels immediate.
+
+### Changed
+- The Xcode project version settings now stay aligned with `version.env`.
+
+### Fixed
+- Category switching no longer blocks on building the filtered tree on the main thread.
+- The current scan tree is reused for category views instead of triggering new scans.
+
 ## 0.0.1 — 2026-06-16
 
 ### Added

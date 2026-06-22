@@ -100,4 +100,4 @@ The CI workflow also uploads a downloadable artifact bundle so you can grab the 
 
 ## License
 
-This project is released under the terms of the Unlicense. See [LICENSE](LICENSE) for details.
+This project is released under the terms of the MIT License. See [LICENSE](LICENSE) for details.
