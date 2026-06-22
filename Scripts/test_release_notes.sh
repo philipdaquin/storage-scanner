@@ -2,14 +2,16 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+source "$ROOT/Scripts/release-common.sh"
+storage_scanner_load_env "$ROOT"
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/storage-scanner-release-notes.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 OUTPUT="$TEMP_DIR/release-notes.md"
 
-bash "$ROOT/Scripts/release-notes.sh" "0.0.1" "$OUTPUT"
+bash "$ROOT/Scripts/release-notes.sh" "$MARKETING_VERSION" "$OUTPUT"
 
-grep -Fq "StorageScanner 0.0.1" "$OUTPUT"
+grep -Fq "StorageScanner $MARKETING_VERSION" "$OUTPUT"
 grep -Fq "Generated from commit subjects" "$OUTPUT"
 grep -Fq "## Added" "$OUTPUT"
 grep -Fq "Add Sparkle auto-update support" "$OUTPUT"
